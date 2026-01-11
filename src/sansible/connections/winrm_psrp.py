@@ -180,11 +180,17 @@ class WinRMConnection(Connection):
     def _run_powershell(self, script: str) -> RunResult:
         """Synchronous PowerShell execution."""
         try:
-            stdout, stderr, had_errors = self._client.execute_ps(script)
+            output, streams, had_errors = self._client.execute_ps(script)
             
-            # pypsrp returns None for empty output
-            stdout = stdout or ""
-            stderr = stderr or ""
+            # pypsrp returns None for empty output, and streams is a PSDataStreams object
+            stdout = output or ""
+            
+            # Extract error messages from streams.error
+            stderr_parts = []
+            if streams and hasattr(streams, 'error') and streams.error:
+                for err in streams.error:
+                    stderr_parts.append(str(err))
+            stderr = "\n".join(stderr_parts)
             
             return RunResult(
                 rc=1 if had_errors else 0,

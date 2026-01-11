@@ -190,9 +190,9 @@ class TestPlaybookParser:
 ---
 - hosts: all
   tasks:
-    - lineinfile:
-        path: /etc/hosts
-        line: "127.0.0.1 test"
+    - some_unsupported_module_xyz:
+        param1: value1
+        param2: value2
 """)
         
         parser = PlaybookParser(playbook_file)

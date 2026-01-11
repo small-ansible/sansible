@@ -36,11 +36,24 @@ MODULE_ALIASES = {
     'ansible.windows.win_file': 'win_file',
 }
 
-# Supported modules in v0.1
+# Supported modules in v0.3
 SUPPORTED_MODULES = {
-    'copy', 'command', 'shell', 'raw', 'debug', 'set_fact', 'fail', 'assert',
-    'file', 'template',
-    'win_copy', 'win_command', 'win_shell', 'win_file',
+    # Core modules
+    'command', 'shell', 'raw', 'copy', 'file', 'template', 'debug',
+    'set_fact', 'fail', 'assert', 'ping', 'setup', 'stat', 'lineinfile',
+    'wait_for', 'fetch', 'find', 'service', 'user', 'group', 'group_by',
+    'apt', 'yum', 'dnf', 'package', 'pip', 'git', 'uri', 'pause', 'meta',
+    'add_host', 'include_vars', 'include_tasks', 'import_tasks',
+    'include_role', 'import_role', 'get_url',
+    # Extended modules
+    'blockinfile', 'replace', 'slurp', 'tempfile', 'script', 'hostname',
+    'cron', 'reboot', 'unarchive', 'systemd', 'systemd_service',
+    'known_hosts', 'getent', 'wait_for_connection',
+    # Windows modules
+    'win_command', 'win_shell', 'win_copy', 'win_file', 'win_stat',
+    'win_lineinfile', 'win_wait_for', 'win_service', 'win_ping',
+    'win_reboot', 'win_user', 'win_group', 'win_template', 'win_hostname',
+    'win_slurp', 'win_get_url',
 }
 
 # Task keys that are NOT module names

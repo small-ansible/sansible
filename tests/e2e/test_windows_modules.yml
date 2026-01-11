@@ -1,0 +1,222 @@
+---
+# Test all Windows modules against a real target
+- name: Test Windows Modules
+  hosts: windows
+  gather_facts: true
+  vars:
+    test_dir: C:\sansible_test
+    test_file: C:\sansible_test\testfile.txt
+
+  tasks:
+    # ========== setup (gather_facts) ==========
+    - name: Display gathered facts
+      debug:
+        msg: "OS: {{ ansible_os_family }}, Distribution: {{ ansible_distribution }}"
+
+    # ========== win_ping (implicit via gather_facts) ==========
+    - name: Test connection is working
+      debug:
+        msg: "Windows connection successful"
+
+    # ========== win_command ==========
+    - name: Test win_command module
+      win_command: whoami
+      register: cmd_result
+
+    - name: Verify command output
+      debug:
+        var: cmd_result.stdout
+
+    # ========== win_shell ==========
+    - name: Test win_shell module (PowerShell)
+      win_shell: Write-Output "Hello from PowerShell"
+      register: shell_result
+
+    - name: Verify shell output
+      debug:
+        var: shell_result.stdout
+
+    - name: Test win_shell with pipe
+      win_shell: Get-Date | Select-Object -ExpandProperty DayOfWeek
+      register: date_result
+
+    - name: Show date result
+      debug:
+        var: date_result.stdout
+
+    # ========== win_file (directory) ==========
+    - name: Create test directory
+      win_file:
+        path: "{{ test_dir }}"
+        state: directory
+      register: dir_result
+
+    - name: Verify directory created
+      debug:
+        var: dir_result
+
+    # ========== win_copy (content) ==========
+    - name: Copy content to file
+      win_copy:
+        content: "Test content from sansible\r\n"
+        dest: "{{ test_file }}"
+      register: copy_result
+
+    - name: Verify file copied
+      debug:
+        var: copy_result
+
+    # ========== win_stat ==========
+    - name: Stat the test file
+      win_stat:
+        path: "{{ test_file }}"
+      register: stat_result
+
+    - name: Verify stat
+      assert:
+        that:
+          - stat_result.stat.exists
+          - stat_result.stat.isreg
+        fail_msg: "win_stat failed"
+
+    - name: Show stat details
+      debug:
+        var: stat_result.stat
+
+    # ========== win_lineinfile ==========
+    - name: Add line to file
+      win_lineinfile:
+        path: "{{ test_file }}"
+        line: "Added by win_lineinfile"
+        create: true
+      register: line_result
+
+    - name: Read file to verify
+      win_shell: Get-Content "{{ test_file }}"
+      register: cat_result
+
+    - name: Verify lineinfile
+      assert:
+        that:
+          - "'Added by win_lineinfile' in cat_result.stdout"
+
+    # ========== set_fact ==========
+    - name: Set a fact
+      set_fact:
+        my_custom_fact: "value_from_set_fact"
+
+    - name: Use the fact
+      debug:
+        msg: "Custom fact is: {{ my_custom_fact }}"
+
+    # ========== debug ==========
+    - name: Test debug with var
+      debug:
+        var: ansible_hostname
+
+    - name: Test debug with msg
+      debug:
+        msg: "Testing debug module on Windows"
+
+    # ========== assert ==========
+    - name: Test assert module
+      assert:
+        that:
+          - 1 == 1
+          - "'Windows' in ansible_os_family"
+        success_msg: "Windows assertions passed"
+
+    # ========== win_wait_for (file) ==========
+    - name: Wait for test file
+      win_wait_for:
+        path: "{{ test_file }}"
+        state: present
+        timeout: 5
+      register: wait_result
+
+    - name: Verify wait_for
+      debug:
+        var: wait_result
+
+    # ========== win_service (query) ==========
+    - name: Check Windows Update service status
+      win_service:
+        name: wuauserv
+        state: started
+      register: service_result
+      ignore_errors: true
+
+    - name: Show service result
+      debug:
+        var: service_result
+
+    - name: Query a service
+      win_shell: Get-Service -Name 'wuauserv' | Select-Object Name, Status, StartType | ConvertTo-Json
+      register: svc_query
+
+    - name: Show service info
+      debug:
+        var: svc_query.stdout
+
+    # ========== Template test via win_copy ==========
+    - name: Create rendered template content
+      set_fact:
+        template_content: |
+          Hostname: {{ ansible_hostname }}
+          User: {{ ansible_user }}
+          OS: {{ ansible_os_family }}
+
+    - name: Write template to file
+      win_copy:
+        content: "{{ template_content }}"
+        dest: "{{ test_dir }}\\from_template.txt"
+      register: template_result
+
+    - name: Read template file
+      win_shell: Get-Content "{{ test_dir }}\from_template.txt"
+      register: template_cat
+
+    - name: Show template output
+      debug:
+        var: template_cat.stdout
+
+    # ========== Registry operations via win_shell ==========
+    - name: Read a registry value
+      win_shell: |
+        Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' -Name ProductName | Select-Object -ExpandProperty ProductName
+      register: reg_result
+
+    - name: Show Windows version
+      debug:
+        var: reg_result.stdout
+
+    # ========== Environment info ==========
+    - name: Get environment variables
+      win_shell: $env:COMPUTERNAME
+      register: computer_name
+
+    - name: Show computer name
+      debug:
+        msg: "Computer name: {{ computer_name.stdout | trim }}"
+
+    # ========== Cleanup ==========
+    - name: Cleanup test directory
+      win_file:
+        path: "{{ test_dir }}"
+        state: absent
+      register: cleanup_result
+
+    - name: Verify cleanup
+      win_stat:
+        path: "{{ test_dir }}"
+      register: cleanup_stat
+
+    - name: Confirm cleanup
+      assert:
+        that:
+          - not cleanup_stat.stat.exists
+        fail_msg: "Cleanup failed"
+
+    - name: Final summary
+      debug:
+        msg: "All Windows module tests completed successfully!"

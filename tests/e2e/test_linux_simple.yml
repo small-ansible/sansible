@@ -1,0 +1,169 @@
+---
+# Simpler test to verify all Linux modules work
+- name: Test Linux Modules
+  hosts: linux
+  gather_facts: true
+
+  tasks:
+    # ========== setup (gather_facts) ==========
+    - name: Display gathered facts
+      debug:
+        msg: "OS: {{ ansible_os_family }}, Distribution: {{ ansible_distribution }}"
+
+    # ========== ping ==========
+    - name: Test ping module
+      ping:
+      register: ping_result
+
+    - name: Show ping
+      debug:
+        var: ping_result
+
+    # ========== command ==========
+    - name: Test command module
+      command: echo "Hello from command"
+      register: cmd_result
+
+    - name: Show command output
+      debug:
+        var: cmd_result
+
+    # ========== shell ==========
+    - name: Test shell module with pipe
+      shell: echo "Hello" | cat
+      register: shell_result
+
+    - name: Show shell output
+      debug:
+        var: shell_result
+
+    # ========== raw ==========
+    - name: Test raw module
+      raw: uname -a
+      register: raw_result
+
+    - name: Show raw output
+      debug:
+        var: raw_result
+
+    # ========== file (directory) ==========
+    - name: Create test directory
+      file:
+        path: /tmp/sansible_test
+        state: directory
+        mode: "0755"
+      register: dir_result
+
+    - name: Show dir result
+      debug:
+        var: dir_result
+
+    # ========== copy (content) ==========
+    - name: Copy content to file
+      copy:
+        content: "Test content from sansible\n"
+        dest: /tmp/sansible_test/testfile.txt
+        mode: "0644"
+      register: copy_result
+
+    - name: Show copy result
+      debug:
+        var: copy_result
+
+    # ========== stat ==========
+    - name: Stat the test file
+      stat:
+        path: /tmp/sansible_test/testfile.txt
+      register: stat_result
+
+    - name: Show stat result
+      debug:
+        var: stat_result
+
+    # ========== lineinfile ==========
+    - name: Add line to file
+      lineinfile:
+        path: /tmp/sansible_test/testfile.txt
+        line: "Added by lineinfile"
+        create: true
+      register: line_result
+
+    - name: Show lineinfile result
+      debug:
+        var: line_result
+
+    - name: Read file to verify
+      command: cat /tmp/sansible_test/testfile.txt
+      register: cat_result
+
+    - name: Show cat result
+      debug:
+        var: cat_result.stdout
+
+    # ========== set_fact ==========
+    - name: Set a fact
+      set_fact:
+        my_custom_fact: "value_from_set_fact"
+
+    - name: Use the fact
+      debug:
+        msg: "Custom fact is: {{ my_custom_fact }}"
+
+    # ========== debug ==========
+    - name: Test debug with var
+      debug:
+        var: ansible_hostname
+
+    - name: Test debug with msg
+      debug:
+        msg: "Testing debug module"
+
+    # ========== wait_for (file) ==========
+    - name: Wait for test file
+      wait_for:
+        path: /tmp/sansible_test/testfile.txt
+        state: present
+        timeout: 5
+      register: wait_result
+
+    - name: Show wait_for result
+      debug:
+        var: wait_result
+
+    # ========== find ==========
+    - name: Find files in test dir
+      find:
+        paths: /tmp/sansible_test
+        patterns: "*.txt"
+      register: find_result
+
+    - name: Show found files
+      debug:
+        var: find_result.files
+
+    # ========== service ==========
+    - name: Check sshd service status
+      service:
+        name: sshd
+        state: started
+      register: service_result
+      ignore_errors: true
+
+    - name: Show service result
+      debug:
+        var: service_result
+
+    # ========== Cleanup ==========
+    - name: Cleanup test directory
+      file:
+        path: /tmp/sansible_test
+        state: absent
+      register: cleanup_result
+
+    - name: Show cleanup result
+      debug:
+        var: cleanup_result
+
+    - name: Final summary
+      debug:
+        msg: "All Linux module tests completed!"

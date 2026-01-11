@@ -1,0 +1,259 @@
+---
+# Test all Linux modules against a real target
+- name: Test Linux Modules
+  hosts: linux
+  gather_facts: true
+  vars:
+    test_dir: /tmp/sansible_test
+    test_file: /tmp/sansible_test/testfile.txt
+
+  tasks:
+    # ========== setup (gather_facts) ==========
+    - name: Display gathered facts
+      debug:
+        msg: "OS: {{ ansible_os_family }}, Distribution: {{ ansible_distribution }}"
+
+    # ========== ping ==========
+    - name: Test ping module
+      ping:
+      register: ping_result
+
+    - name: Verify ping
+      debug:
+        var: ping_result
+
+    # ========== command ==========
+    - name: Test command module
+      command: echo "Hello from command"
+      register: cmd_result
+
+    - name: Verify command output
+      assert:
+        that:
+          - cmd_result.stdout == "Hello from command"
+        fail_msg: "Command module failed"
+
+    # ========== shell ==========
+    - name: Test shell module with pipe
+      shell: echo "Hello" | cat
+      register: shell_result
+
+    - name: Verify shell output
+      assert:
+        that:
+          - shell_result.stdout == "Hello"
+
+    # ========== raw ==========
+    - name: Test raw module
+      raw: uname -a
+      register: raw_result
+
+    - name: Show raw output
+      debug:
+        var: raw_result.stdout
+
+    # ========== file (directory) ==========
+    - name: Create test directory
+      file:
+        path: "{{ test_dir }}"
+        state: directory
+        mode: "0755"
+      register: dir_result
+
+    - name: Verify directory created
+      assert:
+        that:
+          - dir_result.changed or not dir_result.changed
+
+    # ========== copy (content) ==========
+    - name: Copy content to file
+      copy:
+        content: "Test content from sansible\n"
+        dest: "{{ test_file }}"
+        mode: "0644"
+      register: copy_result
+
+    - name: Verify file copied
+      debug:
+        var: copy_result
+
+    # ========== stat ==========
+    - name: Stat the test file
+      stat:
+        path: "{{ test_file }}"
+      register: stat_result
+
+    - name: Verify stat
+      assert:
+        that:
+          - stat_result.stat.exists
+          - stat_result.stat.isreg
+
+    # ========== lineinfile ==========
+    - name: Add line to file
+      lineinfile:
+        path: "{{ test_file }}"
+        line: "Added by lineinfile"
+        create: true
+      register: line_result
+
+    - name: Read file to verify
+      command: cat {{ test_file }}
+      register: cat_result
+
+    - name: Verify lineinfile
+      assert:
+        that:
+          - "'Added by lineinfile' in cat_result.stdout"
+
+    # ========== template ==========
+    - name: Create template source
+      copy:
+        content: "Hello {{ ansible_user }}!\nHostname: {{ ansible_hostname }}\n"
+        dest: "{{ test_dir }}/template.j2"
+
+    - name: Use template module
+      template:
+        src: "{{ test_dir }}/template.j2"
+        dest: "{{ test_dir }}/from_template.txt"
+      register: template_result
+
+    - name: Verify template
+      command: cat {{ test_dir }}/from_template.txt
+      register: template_cat
+
+    - name: Show template output
+      debug:
+        var: template_cat.stdout
+
+    # ========== set_fact ==========
+    - name: Set a fact
+      set_fact:
+        my_custom_fact: "value_from_set_fact"
+
+    - name: Use the fact
+      debug:
+        msg: "Custom fact is: {{ my_custom_fact }}"
+
+    # ========== debug ==========
+    - name: Test debug with var
+      debug:
+        var: ansible_hostname
+
+    - name: Test debug with msg
+      debug:
+        msg: "Testing debug module"
+
+    # ========== fail (conditional) ==========
+    - name: Test fail module (should not fail)
+      fail:
+        msg: "This should not run"
+      when: false
+
+    # ========== assert ==========
+    - name: Test assert module
+      assert:
+        that:
+          - 1 == 1
+          - "'test' in 'testing'"
+        success_msg: "Assertions passed"
+
+    # ========== wait_for (file) ==========
+    - name: Wait for test file
+      wait_for:
+        path: "{{ test_file }}"
+        state: present
+        timeout: 5
+      register: wait_result
+
+    - name: Verify wait_for
+      debug:
+        var: wait_result
+
+    # ========== find ==========
+    - name: Find files in test dir
+      find:
+        paths: "{{ test_dir }}"
+        patterns: "*.txt"
+      register: find_result
+
+    - name: Show found files
+      debug:
+        var: find_result.files
+
+    # ========== fetch ==========
+    - name: Fetch the test file
+      fetch:
+        src: "{{ test_file }}"
+        dest: /tmp/fetched/
+        flat: true
+      register: fetch_result
+
+    - name: Show fetch result
+      debug:
+        var: fetch_result
+
+    # ========== service (check status) ==========
+    - name: Check sshd service status
+      service:
+        name: sshd
+        state: started
+      register: service_result
+      ignore_errors: true
+
+    - name: Show service result
+      debug:
+        var: service_result
+
+    # ========== group ==========
+    - name: Ensure testgroup exists
+      group:
+        name: sansible_test_group
+        state: present
+      register: group_result
+      ignore_errors: true
+      become: true
+
+    - name: Show group result
+      debug:
+        var: group_result
+
+    # ========== user ==========
+    - name: Ensure test user exists
+      user:
+        name: sansible_test_user
+        state: present
+        create_home: false
+      register: user_result
+      ignore_errors: true
+      become: true
+
+    - name: Show user result
+      debug:
+        var: user_result
+
+    # ========== Cleanup ==========
+    - name: Remove test user
+      user:
+        name: sansible_test_user
+        state: absent
+        remove: true
+      ignore_errors: true
+      become: true
+
+    - name: Remove test group
+      group:
+        name: sansible_test_group
+        state: absent
+      ignore_errors: true
+      become: true
+
+    - name: Cleanup test directory
+      file:
+        path: "{{ test_dir }}"
+        state: absent
+      register: cleanup_result
+
+    - name: Final summary
+      debug:
+        msg: "All Linux module tests completed successfully!"

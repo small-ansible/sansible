@@ -98,14 +98,14 @@ class TestVaultHeader:
 class TestVaultIntegration:
     """Integration tests for vault with known encrypted content."""
     
-    # This is a real vault-encrypted string "hello world" with password "test"
-    # Generated with: ansible-vault encrypt_string 'hello world' --vault-password-file <(echo test)
+    # This is a real vault-encrypted string "hello world\n" with password "test"
+    # Generated with: echo "hello world" | ansible-vault encrypt_string --vault-password-file <(echo -n test) --stdin-name myvar
     ENCRYPTED_HELLO = """$ANSIBLE_VAULT;1.1;AES256
-33366637306339313939363138663537343832343238383561623638383963383038616364666231
-3435303161333033343264663065613231653231643730370a323061353039383432323134623866
-61383638336662316233613365396137373632336634303632613839303461313436326232613365
-3833613534346531640a343164306633613264636366313934623561376562653762386138343461
-3835"""
+37313034343164653261373935303533353136303537613166653432346462343961353431376266
+3835343633363636343464326565646237663036326639340a396663353065303331376338376564
+62316436366233333039333330333930366666666665346631663765326331636164643961633934
+6466393738366461340a643365303962323065613761613034343636633139303564613637616637
+3962"""
     
     def test_decrypt_real_vault_content(self):
         """Test decryption of real Ansible Vault content."""
@@ -113,14 +113,8 @@ class TestVaultIntegration:
         pytest.importorskip("cryptography")
         
         vault = VaultLib([VaultSecret("test")])
-        
-        try:
-            result = vault.decrypt(self.ENCRYPTED_HELLO)
-            assert result.strip() == b"hello world"
-        except VaultError as e:
-            # If decryption fails, it might be format issues
-            # Mark as xfail for now
-            pytest.xfail(f"Vault decryption failed: {e}")
+        result = vault.decrypt(self.ENCRYPTED_HELLO)
+        assert result.strip() == b"hello world"
     
     def test_decrypt_file(self, tmp_path: Path):
         """Test decryption of vault file."""
@@ -130,9 +124,5 @@ class TestVaultIntegration:
         vault_file.write_text(self.ENCRYPTED_HELLO)
         
         vault = VaultLib([VaultSecret("test")])
-        
-        try:
-            result = vault.decrypt_file(vault_file)
-            assert b"hello" in result
-        except VaultError:
-            pytest.xfail("Vault file decryption failed")
+        result = vault.decrypt_file(vault_file)
+        assert b"hello" in result

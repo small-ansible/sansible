@@ -93,17 +93,15 @@ class TestScheduler:
             await asyncio.sleep(delay)
             concurrent -= 1
         
-        # Run 5 tasks with forks=2, they should run max 2 at a time
-        tasks = [task_runner(0.1) for _ in range(5)]
-        
-        # Using semaphore to limit concurrency
+        # Using semaphore to limit concurrency (simulating scheduler forks)
         semaphore = asyncio.Semaphore(2)
         
-        async def limited_task(t):
+        async def limited_task():
             async with semaphore:
-                await t
+                await task_runner(0.05)
         
-        await asyncio.gather(*[limited_task(task_runner(0.05)) for _ in range(5)])
+        # Run 5 tasks with forks=2, they should run max 2 at a time
+        await asyncio.gather(*[limited_task() for _ in range(5)])
         
         assert max_concurrent <= 2
 

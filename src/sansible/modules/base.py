@@ -251,6 +251,23 @@ def _import_builtin_modules() -> None:
     from sansible.modules import builtin_assert
     from sansible.modules import builtin_file
     from sansible.modules import builtin_template
+    from sansible.modules import builtin_ping
+    from sansible.modules import builtin_service
+    from sansible.modules import builtin_user
+    from sansible.modules import builtin_group
+    from sansible.modules import builtin_group_by
+    from sansible.modules import builtin_apt
+    from sansible.modules import builtin_yum
+    from sansible.modules import builtin_package
+    from sansible.modules import builtin_pip
+    from sansible.modules import builtin_git
+    from sansible.modules import builtin_uri
+    from sansible.modules import builtin_fetch
+    from sansible.modules import builtin_find
+    from sansible.modules import builtin_pause
+    from sansible.modules import builtin_meta
+    from sansible.modules import builtin_add_host
+    from sansible.modules import builtin_include_vars
     from sansible.modules import win_command
     from sansible.modules import win_shell
     from sansible.modules import win_copy
@@ -263,6 +280,27 @@ def _import_builtin_modules() -> None:
     from sansible.modules import win_lineinfile
     from sansible.modules import builtin_wait_for
     from sansible.modules import win_wait_for
+    from sansible.modules import builtin_blockinfile
+    from sansible.modules import builtin_replace
+    from sansible.modules import builtin_slurp
+    from sansible.modules import builtin_tempfile
+    from sansible.modules import builtin_script
+    from sansible.modules import builtin_hostname
+    from sansible.modules import builtin_cron
+    from sansible.modules import builtin_reboot
+    from sansible.modules import builtin_unarchive
+    from sansible.modules import builtin_systemd
+    from sansible.modules import builtin_known_hosts
+    from sansible.modules import builtin_getent
+    from sansible.modules import builtin_wait_for_connection
+    from sansible.modules import win_ping
+    from sansible.modules import win_reboot
+    from sansible.modules import win_user
+    from sansible.modules import win_group
+    from sansible.modules import win_template
+    from sansible.modules import win_hostname
+    from sansible.modules import win_slurp
+    from sansible.modules import win_get_url
 
 
 def _print_task_banner(task_name: str) -> None:

@@ -161,26 +161,25 @@ class VaultLib:
         """
         Decrypt AES-256-CTR encrypted payload.
         
-        The payload format is:
+        The payload format after first hex decode is:
         - Salt (32 bytes, hex encoded = 64 chars)
         - HMAC (32 bytes, hex encoded = 64 chars)  
         - Ciphertext (remainder, hex encoded)
         
-        All concatenated together before hex encoding.
+        These are separated by newlines in the decoded payload.
         """
-        # Payload is hex-encoded: salt + hmac + ciphertext
+        # Payload is hex-encoded: salt\nhmac\nciphertext
         try:
-            payload_hex = payload.decode('utf-8')
+            payload_str = payload.decode('utf-8')
         except UnicodeDecodeError:
             raise VaultError("Invalid vault payload encoding")
         
-        # Split the components (each 64 hex chars = 32 bytes for salt and hmac)
-        if len(payload_hex) < 128:  # At least salt + hmac
-            raise VaultError("Vault payload too short")
+        # Split by newlines - Ansible format has 3 parts
+        parts = payload_str.split('\n')
+        if len(parts) != 3:
+            raise VaultError(f"Invalid vault payload format: expected 3 parts, got {len(parts)}")
         
-        salt_hex = payload_hex[:64]
-        hmac_hex = payload_hex[64:128]
-        ciphertext_hex = payload_hex[128:]
+        salt_hex, hmac_hex, ciphertext_hex = parts
         
         try:
             salt = binascii.unhexlify(salt_hex)

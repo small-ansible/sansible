@@ -1,0 +1,117 @@
+---
+# Combined test for both Linux and Windows modules
+- name: Test Linux Modules
+  hosts: linux
+  gather_facts: true
+
+  tasks:
+    - name: Linux - Display facts
+      debug:
+        msg: "Linux Host: {{ ansible_hostname }}, OS: {{ ansible_distribution }}"
+
+    - name: Linux - Test ping
+      ping:
+
+    - name: Linux - Test command
+      command: echo "Hello from Linux"
+      register: linux_cmd
+
+    - name: Linux - Show command result
+      debug:
+        var: linux_cmd.stdout
+
+    - name: Linux - Test shell
+      shell: uname -a
+      register: linux_uname
+
+    - name: Linux - Show uname
+      debug:
+        var: linux_uname.stdout
+
+    - name: Linux - Create test directory
+      file:
+        path: /tmp/sansible_combined_test
+        state: directory
+
+    - name: Linux - Copy content
+      copy:
+        content: "Sansible combined test\n"
+        dest: /tmp/sansible_combined_test/test.txt
+
+    - name: Linux - Stat file
+      stat:
+        path: /tmp/sansible_combined_test/test.txt
+      register: linux_stat
+
+    - name: Linux - Verify stat
+      debug:
+        msg: "File exists: {{ linux_stat.stat.exists }}, Size: {{ linux_stat.stat.size }}"
+
+    - name: Linux - Cleanup
+      file:
+        path: /tmp/sansible_combined_test
+        state: absent
+
+    - name: Linux - Summary
+      debug:
+        msg: "Linux tests completed successfully!"
+
+- name: Test Windows Modules
+  hosts: windows
+  gather_facts: true
+
+  tasks:
+    - name: Windows - Display facts
+      debug:
+        msg: "Windows Host: {{ ansible_hostname }}, OS: {{ ansible_os_family }}"
+
+    - name: Windows - Test win_command
+      win_command: whoami
+      register: win_cmd
+
+    - name: Windows - Show command result
+      debug:
+        var: win_cmd.stdout
+
+    - name: Windows - Test win_shell
+      win_shell: Get-ComputerInfo | Select-Object -ExpandProperty WindowsProductName
+      register: win_product
+
+    - name: Windows - Show product name
+      debug:
+        var: win_product.stdout
+
+    - name: Windows - Create test directory
+      win_file:
+        path: C:\sansible_combined_test
+        state: directory
+
+    - name: Windows - Copy content
+      win_copy:
+        content: "Sansible combined test\r\n"
+        dest: C:\sansible_combined_test\test.txt
+
+    - name: Windows - Stat file
+      win_stat:
+        path: C:\sansible_combined_test\test.txt
+      register: win_stat
+
+    - name: Windows - Verify stat
+      debug:
+        msg: "File exists: {{ win_stat.stat.exists }}, Size: {{ win_stat.stat.size }}"
+
+    - name: Windows - Test win_service
+      win_service:
+        name: wuauserv
+        state: started
+      register: win_svc
+      ignore_errors: true
+
+    - name: Windows - Cleanup
+      win_file:
+        path: C:\sansible_combined_test
+        state: absent
+
+    - name: Windows - Summary
+      debug:
+        msg: "Windows tests completed successfully!"

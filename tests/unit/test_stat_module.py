@@ -9,16 +9,19 @@ from sansible.engine.scheduler import HostContext
 from sansible.engine.inventory import Host
 
 
-class MockStatInfo:
-    """Mock stat result."""
-    def __init__(self, *, exists=True, is_file=True, is_dir=False, mode="0644", size=100, uid=1000, gid=1000):
-        self.exists = exists
-        self.is_file = is_file
-        self.is_dir = is_dir
-        self.mode = mode
-        self.size = size
-        self.uid = uid
-        self.gid = gid
+def mock_stat_dict(*, exists=True, isfile=True, isdir=False, mode="0644", size=100, uid=1000, gid=1000):
+    """Create a mock stat result dict (matching what connections actually return)."""
+    if not exists:
+        return None  # Non-existent files return None
+    return {
+        "exists": exists,
+        "isfile": isfile,
+        "isdir": isdir,
+        "mode": mode,
+        "size": size,
+        "uid": uid,
+        "gid": gid,
+    }
 
 
 class TestStatModule:
@@ -43,9 +46,9 @@ class TestStatModule:
         host = Host(name="test", variables={"ansible_connection": "local"})
         ctx = HostContext(host=host)
         
-        # Mock connection with stat
+        # Mock connection with stat - returns dict
         ctx.connection = MagicMock()
-        ctx.connection.stat = AsyncMock(return_value=MockStatInfo(exists=True, is_file=True))
+        ctx.connection.stat = AsyncMock(return_value=mock_stat_dict(exists=True, isfile=True))
         
         module = StatModule({"path": "/etc/passwd"}, ctx)
         result = await module.run()
@@ -62,9 +65,9 @@ class TestStatModule:
         
         host = Host(name="test", variables={"ansible_connection": "local"})
         ctx = HostContext(host=host)
-        
+
         ctx.connection = MagicMock()
-        ctx.connection.stat = AsyncMock(return_value=MockStatInfo(exists=False))
+        ctx.connection.stat = AsyncMock(return_value=None)  # Non-existent = None
         
         module = StatModule({"path": "/nonexistent"}, ctx)
         result = await module.run()
@@ -82,7 +85,7 @@ class TestStatModule:
         ctx = HostContext(host=host)
         
         ctx.connection = MagicMock()
-        ctx.connection.stat = AsyncMock(return_value=MockStatInfo(exists=True, is_file=False, is_dir=True))
+        ctx.connection.stat = AsyncMock(return_value=mock_stat_dict(exists=True, isfile=False, isdir=True))
         
         module = StatModule({"path": "/etc"}, ctx)
         result = await module.run()
@@ -101,7 +104,7 @@ class TestStatModule:
         ctx = HostContext(host=host)
         
         ctx.connection = MagicMock()
-        ctx.connection.stat = AsyncMock(return_value=MockStatInfo(exists=True, mode="0755"))
+        ctx.connection.stat = AsyncMock(return_value=mock_stat_dict(exists=True, mode="0755"))
         
         module = StatModule({"path": "/usr/bin/python"}, ctx)
         result = await module.run()
@@ -119,7 +122,7 @@ class TestStatModule:
         ctx = HostContext(host=host)
         
         ctx.connection = MagicMock()
-        ctx.connection.stat = AsyncMock(return_value=MockStatInfo(exists=True, size=1024))
+        ctx.connection.stat = AsyncMock(return_value=mock_stat_dict(exists=True, size=1024))
         
         module = StatModule({"path": "/etc/hosts"}, ctx)
         result = await module.run()

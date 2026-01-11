@@ -42,20 +42,24 @@ class StatModule(Module):
         try:
             stat_info = await self.connection.stat(path)
             
-            stat_result = {
-                "exists": stat_info.exists,
-                "path": path,
-            }
-            
-            if stat_info.exists:
-                stat_result.update({
-                    "isdir": stat_info.is_dir,
-                    "isreg": stat_info.is_file,
-                    "mode": stat_info.mode,
-                    "size": stat_info.size,
-                    "uid": stat_info.uid,
-                    "gid": stat_info.gid,
-                })
+            # connection.stat returns a dict or None
+            if stat_info is None:
+                # File doesn't exist
+                stat_result = {
+                    "exists": False,
+                    "path": path,
+                }
+            else:
+                stat_result = {
+                    "exists": stat_info.get("exists", True),
+                    "path": path,
+                    "isdir": stat_info.get("isdir", False),
+                    "isreg": stat_info.get("isfile", stat_info.get("isreg", False)),
+                    "mode": stat_info.get("mode", ""),
+                    "size": stat_info.get("size", 0),
+                    "uid": stat_info.get("uid", 0),
+                    "gid": stat_info.get("gid", 0),
+                }
             
             return ModuleResult(
                 changed=False,  # stat never changes anything
