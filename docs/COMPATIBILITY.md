@@ -228,7 +228,7 @@ Supported lookup plugins:
 
 ## Test Coverage
 
-### Unit Tests: 307 Passed ✅
+### Unit Tests: 310 Passed ✅
 
 All core functionality has comprehensive unit test coverage.
 

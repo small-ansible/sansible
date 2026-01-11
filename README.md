@@ -3,7 +3,7 @@
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![Pure Python](https://img.shields.io/badge/wheel-py3--none--any-green.svg)](https://pypi.org/project/sansible/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Tests](https://img.shields.io/badge/tests-269%20passed-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-310%20passed-brightgreen.svg)](tests/)
 
 **A minimal, pure-Python Ansible runner for Windows and Linux**
 

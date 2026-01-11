@@ -29,9 +29,9 @@ CLI → Engine (runner.py) → Connections → Modules
 
 ```bash
 pip install -e ".[dev]"           # Includes ansible-core for golden tests
-pytest tests/unit/ -q             # Fast unit tests (~270 tests, no network)
+pytest tests/unit/ -q             # Fast unit tests (310 tests, no network)
 pytest tests/golden/ -v           # Compare output vs real ansible-playbook
-san run -i examples/inventory.ini examples/linux_playbook.yml
+sansible-playbook -i examples/inventory.ini examples/linux_playbook.yml
 ```
 
 ## Adding a Module

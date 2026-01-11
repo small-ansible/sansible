@@ -30,8 +30,41 @@ def ansible_available() -> bool:
         return False
 
 
+def ansible_json_callback_available() -> bool:
+    """Check if Ansible json callback is available."""
+    try:
+        import tempfile
+        import yaml
+        
+        # Create a minimal playbook to test
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yml', delete=False) as f:
+            yaml.dump([{'hosts': 'localhost', 'gather_facts': False, 
+                       'tasks': [{'ping': None}]}], f)
+            playbook_path = f.name
+        
+        env = os.environ.copy()
+        env["ANSIBLE_STDOUT_CALLBACK"] = "json"
+        env["ANSIBLE_HOST_KEY_CHECKING"] = "False"
+        result = subprocess.run(
+            ["ansible-playbook", "-i", "localhost,", playbook_path],
+            capture_output=True,
+            timeout=30,
+            env=env,
+        )
+        
+        # Clean up
+        os.unlink(playbook_path)
+        
+        # Check if json callback error appears in stderr
+        return b"Could not load 'json'" not in result.stderr
+    except Exception:
+        return False
+
+
 ANSIBLE_AVAILABLE = ansible_available()
+ANSIBLE_JSON_CALLBACK_AVAILABLE = ansible_available() and ansible_json_callback_available()
 SKIP_REASON = "ansible-playbook not installed (run with dev dependencies)"
+SKIP_REASON_JSON = "ansible json callback not available (missing collection)"
 
 
 @pytest.fixture
@@ -63,8 +96,7 @@ class GoldenTestRunner:
         """Run playbook with Sansible and return exit code and JSON result."""
         result = subprocess.run(
             [
-                sys.executable, "-m", "sansible.san_cli",
-                "run",
+                sys.executable, "-m", "sansible.cli.playbook",
                 "-i", self.inventory,
                 self.playbook,
                 "--json",
@@ -159,7 +191,7 @@ def file_content(path: str) -> str:
     return Path(path).read_text()
 
 
-@pytest.mark.skipif(not ANSIBLE_AVAILABLE, reason=SKIP_REASON)
+@pytest.mark.skipif(not ANSIBLE_JSON_CALLBACK_AVAILABLE, reason=SKIP_REASON_JSON)
 class TestGoldenLinuxSmoke:
     """Golden tests for linux_smoke.yml playbook."""
     
@@ -204,8 +236,7 @@ class TestNeoOnly:
         
         result = subprocess.run(
             [
-                sys.executable, "-m", "sansible.san_cli",
-                "run",
+                sys.executable, "-m", "sansible.cli.playbook",
                 "-i", str(inventory_file),
                 playbook,
                 "--json",
@@ -244,8 +275,7 @@ class TestNeoOnly:
         """Sansible should output JSON errors when --json flag is used."""
         result = subprocess.run(
             [
-                sys.executable, "-m", "sansible.san_cli",
-                "run",
+                sys.executable, "-m", "sansible.cli.playbook",
                 "-i", "nonexistent_inventory.ini",
                 "nonexistent_playbook.yml",
                 "--json",

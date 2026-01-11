@@ -9,6 +9,30 @@ import json
 from sansible.modules.base import Module, ModuleResult, register_module
 
 
+def _resolve_dotted_var(data: dict, var_path: str):
+    """
+    Resolve a dotted variable path like 'cmd_result.stdout'.
+    
+    Returns the value or raises KeyError if not found.
+    """
+    parts = var_path.split('.')
+    value = data
+    for part in parts:
+        if isinstance(value, dict):
+            if part not in value:
+                raise KeyError(part)
+            value = value[part]
+        elif isinstance(value, list):
+            try:
+                idx = int(part)
+                value = value[idx]
+            except (ValueError, IndexError):
+                raise KeyError(part)
+        else:
+            raise KeyError(part)
+    return value
+
+
 @register_module
 class DebugModule(Module):
     """
@@ -33,7 +57,10 @@ class DebugModule(Module):
         
         # Get variable value if specified
         if var:
-            var_value = self.context.get_vars().get(var, "VARIABLE IS NOT DEFINED!")
+            try:
+                var_value = _resolve_dotted_var(self.context.get_vars(), var)
+            except KeyError:
+                var_value = "VARIABLE IS NOT DEFINED!"
             if isinstance(var_value, (dict, list)):
                 output = f"{var}: {json.dumps(var_value, indent=2)}"
             else:
