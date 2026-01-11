@@ -63,6 +63,29 @@ def _filter_b64encode(value: str) -> str:
     return base64.b64encode(value.encode('utf-8')).decode('utf-8')
 
 
+def _filter_combine(*dicts: Any, recursive: bool = False) -> Dict[str, Any]:
+    """
+    Combine multiple dicts into one.
+    
+    This is Ansible's combine filter for merging dictionaries.
+    """
+    result: Dict[str, Any] = {}
+    for d in dicts:
+        if d is None:
+            continue
+        if not isinstance(d, dict):
+            continue
+        if recursive:
+            for key, value in d.items():
+                if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+                    result[key] = _filter_combine(result[key], value, recursive=True)
+                else:
+                    result[key] = value
+        else:
+            result.update(d)
+    return result
+
+
 # Export custom filters as a dictionary for reuse
 CUSTOM_FILTERS: Dict[str, Callable[..., Any]] = {
     'default': _filter_default,
@@ -85,6 +108,7 @@ CUSTOM_FILTERS: Dict[str, Callable[..., Any]] = {
     'regex_replace': _filter_regex_replace,
     'b64decode': _filter_b64decode,
     'b64encode': _filter_b64encode,
+    'combine': _filter_combine,
 }
 
 
@@ -128,6 +152,14 @@ class TemplateEngine:
         self.env.tests['iterable'] = lambda x: hasattr(x, '__iter__') and not isinstance(x, str)
         self.env.tests['mapping'] = lambda x: isinstance(x, dict)
         self.env.tests['sequence'] = lambda x: isinstance(x, (list, tuple))
+        
+        # Ansible-style task result tests
+        # These check registered results (dicts with 'failed', 'changed', 'skipped' keys)
+        self.env.tests['failed'] = lambda x: isinstance(x, dict) and x.get('failed', False)
+        self.env.tests['success'] = lambda x: isinstance(x, dict) and not x.get('failed', False)
+        self.env.tests['succeeded'] = lambda x: isinstance(x, dict) and not x.get('failed', False)
+        self.env.tests['changed'] = lambda x: isinstance(x, dict) and x.get('changed', False)
+        self.env.tests['skipped'] = lambda x: isinstance(x, dict) and x.get('skipped', False)
     
     def render(self, template_str: str, variables: Dict[str, Any]) -> str:
         """

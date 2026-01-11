@@ -2,8 +2,8 @@
 
 This document defines the **tested and verified** features of Sansible v0.4.
 
-> **Last Updated:** January 2026  
-> **Test Systems:** Linux RHEL 8.5 (SSH) | Windows Server 2019 (WinRM)
+> **Last Updated:** January 11, 2026  
+> **Test Systems:** Linux RHEL 8.5 (SSH) | Windows Server 2019/2022 (WinRM)
 
 ## Legend
 
@@ -154,6 +154,17 @@ This document defines the **tested and verified** features of Sansible v0.4.
 | `basename` / `dirname` | ✅ | ✅ | Path manipulation |
 | `regex_replace` | ✅ | ✅ | Regex substitution |
 | `b64encode` / `b64decode` | ✅ | ✅ | Base64 encoding |
+| `combine` | ✅ | ✅ | Dict merging |
+
+### Jinja2 Tests
+
+| Test | Linux | Windows | Notes |
+|------|:-----:|:-------:|-------|
+| `defined` / `undefined` | ✅ | ✅ | Variable existence |
+| `string` / `number` | ✅ | ✅ | Type checking |
+| `mapping` / `sequence` / `iterable` | ✅ | ✅ | Container type checking |
+| `failed` / `success` / `succeeded` | ✅ | ✅ | Task result tests |
+| `changed` / `skipped` | ✅ | ✅ | Task result tests |
 
 ---
 
