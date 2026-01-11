@@ -92,14 +92,42 @@ Use exceptions from [engine/errors.py](src/sansible/engine/errors.py):
 Raise `UnsupportedFeatureError` for: `async/poll`, Galaxy collections, complex lookups.
 - Ad-hoc `sansible` and `sansible-inventory` CLIs are placeholders; playbook CLI is the supported path.
 
-## Supported Modules (63 total)
+## Supported Modules (61 total)
 
-- **Linux**: `command`, `shell`, `copy`, `file`, `template`, `lineinfile`, `stat`, `setup`, `debug`, `set_fact`, etc.
-- **Windows**: `win_command`, `win_shell`, `win_copy`, `win_file`, `win_service`, `win_stat`, etc.
+- **Linux (45)**: `command`, `shell`, `copy`, `file`, `template`, `lineinfile`, `stat`, `setup`, `debug`, `set_fact`, etc.
+- **Windows (16)**: `win_command`, `win_shell`, `win_copy`, `win_file`, `win_service`, `win_stat`, etc.
 
-See full list in [modules/](src/sansible/modules/) directory.
+See full list in [docs/MODULES.md](docs/MODULES.md).
+
+## Testing Workflow
+
+### Quick Validation
+```bash
+python -m build --wheel
+pip install dist/sansible-*.whl --force-reinstall
+pytest tests/unit/ -q --tb=no  # 307 tests
+```
+
+### Production Testing (Linux)
+```bash
+sansible-playbook -i tests/e2e/live_inventory.ini tests/e2e/test_all_linux_modules.yml -v
+# Expected: ok=35 changed=25 failed=2 skipped=2
+```
+
+### Production Testing (Windows)
+```bash
+sansible-playbook -i tests/e2e/live_inventory.ini tests/e2e/test_all_windows_modules.yml -v
+# Expected: ok=28 changed=17 failed=1
+```
+
+See [.github/TESTING_LINUX.md](.github/TESTING_LINUX.md) and [.github/TESTING_WINDOWS.md](.github/TESTING_WINDOWS.md) for full AI agent testing prompts.
 
 ## Reference Docs
 
-- [docs/AI_HANDOFF.md](docs/AI_HANDOFF.md) — architecture diagrams, quick start
-- [docs/agent/STATUS.md](docs/agent/STATUS.md) — implementation status
+| Document | Purpose |
+|----------|---------|
+| [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Developer quick start guide |
+| [docs/MODULES.md](docs/MODULES.md) | Complete module reference |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design |
+| [docs/REFACTORING.md](docs/REFACTORING.md) | Code improvement recommendations |
+| [docs/TESTING.md](docs/TESTING.md) | Test strategy |
