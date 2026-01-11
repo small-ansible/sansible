@@ -382,6 +382,40 @@ pytest tests/unit/ -v
 pip wheel . -w dist/
 ```
 
+### Quick Dev Setup with uv
+
+**Linux:**
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+git clone https://github.com/small-ansible/sansible.git && cd sansible
+uv venv && source .venv/bin/activate
+uv pip install -e ".[dev,ssh,winrm]"
+pytest tests/unit/ -q --tb=no
+```
+
+**Windows (PowerShell):**
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+git clone https://github.com/small-ansible/sansible.git; cd sansible
+uv venv; .\.venv\Scripts\Activate.ps1
+uv pip install -e ".[dev,ssh,winrm]"
+pytest tests/unit/ -q --tb=no
+```
+
+### AI Agent Testing
+
+For automated testing with AI agents, use the prompts in `.github/`:
+
+| Prompt | Use Case |
+|--------|----------|
+| [AGENT_TEST_PROMPT.md](.github/AGENT_TEST_PROMPT.md) | Windows control node |
+| [AGENT_TEST_PROMPT_LINUX.md](.github/AGENT_TEST_PROMPT_LINUX.md) | Linux control node |
+
+```bash
+# Fetch and follow the prompt:
+curl -s https://raw.githubusercontent.com/small-ansible/sansible/main/.github/AGENT_TEST_PROMPT_LINUX.md
+```
+
 ---
 
 ## 📚 Documentation
