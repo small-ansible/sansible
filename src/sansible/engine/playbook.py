@@ -673,6 +673,10 @@ class PlaybookParser:
         # Parse module args
         args = self._normalize_args(module_name, module_args)
         
+        # Merge with 'args' key if present (for modules like script, command)
+        if 'args' in data and isinstance(data['args'], dict):
+            args.update(data['args'])
+        
         # Parse loop/with_items
         loop = None
         loop_var = "item"
@@ -746,8 +750,8 @@ class PlaybookParser:
                 value = match.group(2) or match.group(3) or match.group(4)
                 parsed[key] = value
             
-            # If no key=value pairs found, treat as free-form (for shell/command)
-            if not parsed and module_name in ('command', 'shell', 'raw', 'win_command', 'win_shell'):
+            # If no key=value pairs found, treat as free-form (for shell/command/script)
+            if not parsed and module_name in ('command', 'shell', 'raw', 'script', 'win_command', 'win_shell'):
                 parsed['_raw_params'] = args
             
             return parsed

@@ -69,13 +69,17 @@ class ScriptModule(Module):
                     msg=f"Skipped - {removes} does not exist",
                 )
         
-        # Read local script content
-        if not os.path.isabs(script_path):
-            # Try to find relative to playbook or current directory
-            if hasattr(self.context, 'playbook_dir') and self.context.playbook_dir:
-                full_path = os.path.join(self.context.playbook_dir, script_path)
-                if os.path.exists(full_path):
-                    script_path = full_path
+        # Read local script content - check both context attribute and vars
+        playbook_dir = None
+        if hasattr(self.context, 'playbook_dir') and self.context.playbook_dir:
+            playbook_dir = self.context.playbook_dir
+        elif hasattr(self.context, 'vars') and self.context.vars.get('playbook_dir'):
+            playbook_dir = self.context.vars.get('playbook_dir')
+        
+        if not os.path.isabs(script_path) and playbook_dir:
+            full_path = os.path.join(playbook_dir, script_path)
+            if os.path.exists(full_path):
+                script_path = full_path
         
         if not os.path.exists(script_path):
             return ModuleResult(

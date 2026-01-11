@@ -204,12 +204,15 @@ class PlaybookRunner:
         
         # Create host contexts
         host_contexts: Dict[str, HostContext] = {}
+        playbook_dir = str(Path(playbook_path).parent.resolve())
         for host in hosts:
             ctx = HostContext(
                 host=host,
                 check_mode=self.check_mode,
                 diff_mode=self.diff_mode,
             )
+            # Add playbook_dir to vars (for modules like template, script)
+            ctx.vars['playbook_dir'] = playbook_dir
             # Add play vars
             ctx.vars.update(play.vars)
             # Add extra vars (highest priority)

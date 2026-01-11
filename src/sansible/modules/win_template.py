@@ -36,16 +36,21 @@ class WinTemplateModule(Module):
                 msg="No connection available",
             )
         
-        # Find template file
-        if not os.path.isabs(src):
-            if hasattr(self.context, 'playbook_dir') and self.context.playbook_dir:
-                # Try templates directory first
-                template_path = os.path.join(self.context.playbook_dir, 'templates', src)
-                if os.path.exists(template_path):
-                    src = template_path
-                else:
-                    # Try relative to playbook
-                    src = os.path.join(self.context.playbook_dir, src)
+        # Find template file - check both context attribute and vars
+        playbook_dir = None
+        if hasattr(self.context, 'playbook_dir') and self.context.playbook_dir:
+            playbook_dir = self.context.playbook_dir
+        elif hasattr(self.context, 'vars') and self.context.vars.get('playbook_dir'):
+            playbook_dir = self.context.vars.get('playbook_dir')
+        
+        if not os.path.isabs(src) and playbook_dir:
+            # Try templates directory first
+            template_path = os.path.join(playbook_dir, 'templates', src)
+            if os.path.exists(template_path):
+                src = template_path
+            else:
+                # Try relative to playbook
+                src = os.path.join(playbook_dir, src)
         
         if not os.path.exists(src):
             return ModuleResult(
@@ -61,16 +66,23 @@ class WinTemplateModule(Module):
         try:
             from jinja2 import Environment, StrictUndefined
             
-            env = Environment(undefined=StrictUndefined)
+            env = Environment(
+                undefined=StrictUndefined,
+                keep_trailing_newline=True,
+            )
+            
+            # Add common filters from sansible templating
+            from sansible.engine.templating import CUSTOM_FILTERS
+            for name, func in CUSTOM_FILTERS.items():
+                env.filters[name] = func
+            
             template = env.from_string(template_content)
             
-            # Build template variables from context
-            template_vars = {}
-            if hasattr(self.context, 'hostvars'):
-                template_vars.update(self.context.hostvars)
+            # Build template variables from context vars
+            template_vars = self.context.vars.copy() if hasattr(self.context, 'vars') else {}
             
             # Add host info
-            if hasattr(self.context, 'host'):
+            if hasattr(self.context, 'host') and self.context.host:
                 template_vars['inventory_hostname'] = self.context.host.name
             
             rendered = template.render(**template_vars)

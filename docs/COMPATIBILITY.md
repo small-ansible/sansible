@@ -72,7 +72,7 @@ This document defines the **tested and verified** features of Sansible v0.4.
 | `reboot` | ✅ | Tested | System reboot (check mode) |
 | `user` | ✅ | Tested | User management |
 | `group` | ✅ | Tested | Group management |
-| `script` | ⚠️ | Partial | Requires local script file |
+| `script` | ✅ | Tested | Local script transfer & execution |
 
 ### Windows Modules
 
@@ -85,7 +85,7 @@ This document defines the **tested and verified** features of Sansible v0.4.
 | `win_file` | ✅ | Tested | directory, absent states |
 | `win_stat` | ✅ | Tested | File info retrieval |
 | `win_slurp` | ✅ | Tested | Read file content |
-| `win_template` | ⚠️ | Partial | Requires local template |
+| `win_template` | ✅ | Tested | Jinja2 templating |
 | `win_lineinfile` | ✅ | Tested | Line management |
 | `win_service` | ✅ | Tested | Service management |
 | `win_wait_for` | ✅ | Tested | Port/file waiting |
@@ -212,7 +212,7 @@ This document defines the **tested and verified** features of Sansible v0.4.
 
 ## Test Coverage
 
-### Unit Tests: 269 Passed ✅
+### Unit Tests: 296 Passed ✅
 
 All core functionality has comprehensive unit test coverage.
 
@@ -220,8 +220,8 @@ All core functionality has comprehensive unit test coverage.
 
 | Target | Connection | Modules Tested | Status |
 |--------|------------|----------------|--------|
-| Linux RHEL 8.5 | SSH | 35+ | ✅ All passing |
-| Windows Server 2019 | WinRM | 14+ | ✅ All passing |
+| Linux RHEL 8.5 | SSH | 36+ | ✅ All passing |
+| Windows Server 2019 | WinRM | 17+ | ✅ All passing |
 
 ### Key Fixes in v0.4.0
 
@@ -229,6 +229,12 @@ All core functionality has comprehensive unit test coverage.
 - Added task-level `check_mode` support
 - Fixed git module null stat handling
 - Added `b64decode` and `b64encode` filters
+- Added `combine` filter support
+- Added `failed`/`success`/`changed`/`skipped` tests
+- Added `playbook_dir` variable for template/script modules
+- Added `args:` key support for modules (script, command, etc.)
+- Added `script` module free-form parsing
+- Fixed `win_template` variable resolution
 
 ---
 
