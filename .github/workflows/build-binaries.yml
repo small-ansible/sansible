@@ -1,0 +1,179 @@
+name: Build binaries (Windows + Linux)
+
+on:
+  pull_request:
+  push:
+    branches: [ "main" ]
+    tags: [ "v*" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ windows-latest, ubuntu-22.04 ]
+        python-version: [ "3.11" ]
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install build + runtime deps
+        run: |
+          python -m pip install -U pip wheel setuptools
+          # Install Sansible with all transports (ssh + winrm), plus pyinstaller for binary build
+          python -m pip install ".[all]" pyinstaller
+
+      - name: Run unit tests
+        run: |
+          python -m pip install -U pytest pytest-asyncio
+          pytest -q tests/unit
+
+      - name: Create entrypoint wrappers (avoid guessing internal module paths)
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import textwrap
+
+          Path("build").mkdir(exist_ok=True)
+
+          def write_wrapper(path: str, console_script: str):
+              Path(path).write_text(textwrap.dedent(f"""\
+              import sys
+              from importlib.metadata import entry_points
+
+              def _load_console_script(name: str):
+                  eps = entry_points(group="console_scripts")
+                  for ep in eps:
+                      if ep.name == name:
+                          return ep.load()
+                  raise SystemExit(f"console script '{{name}}' not found in installed environment")
+
+              def main():
+                  sys.argv[0] = "{console_script}"
+                  func = _load_console_script("{console_script}")
+                  # Typical console_scripts are callables that read sys.argv
+                  return func()
+
+              if __name__ == "__main__":
+                  raise SystemExit(main())
+              """))
+
+          write_wrapper("build/entry_san.py", "san")
+          write_wrapper("build/entry_sansible_playbook.py", "sansible-playbook")
+          PY
+
+      - name: Build with PyInstaller
+        run: |
+          # Determine top-level import packages for the installed distribution (used for --collect-all)
+          TOP_LEVEL="$(python - <<'PY'
+          from importlib.metadata import distribution
+          dist = distribution("sansible")
+          tl = (dist.read_text("top_level.txt") or "").splitlines()
+          mods = [m.strip() for m in tl if m.strip()]
+          print(" ".join(mods))
+          PY
+          )"
+          echo "top-level modules: $TOP_LEVEL"
+
+          COLLECT_ARGS=""
+          for m in $TOP_LEVEL; do
+            COLLECT_ARGS="$COLLECT_ARGS --collect-all $m"
+          done
+
+          # Include transport libs too (safe even if already pulled via collect-all)
+          python -m PyInstaller -y --onefile --name san \
+            $COLLECT_ARGS \
+            --collect-all asyncssh \
+            --collect-all pypsrp \
+            build/entry_san.py
+
+          python -m PyInstaller -y --onefile --name sansible-playbook \
+            $COLLECT_ARGS \
+            --collect-all asyncssh \
+            --collect-all pypsrp \
+            build/entry_sansible_playbook.py
+
+      - name: Smoke test binaries
+        run: |
+          python - <<'PY'
+          import os, subprocess
+          from pathlib import Path
+
+          dist = Path("dist")
+          san = dist / ("san.exe" if os.name == "nt" else "san")
+          spb = dist / ("sansible-playbook.exe" if os.name == "nt" else "sansible-playbook")
+
+          subprocess.run([str(san), "--help"], check=True)
+          subprocess.run([str(spb), "--help"], check=True)
+          PY
+
+      - name: Package artifacts (zip)
+        run: |
+          python - <<'PY'
+          import os, platform, shutil
+          from pathlib import Path
+          from importlib.metadata import version
+
+          v = version("sansible")
+          os_name = "windows" if os.name == "nt" else "linux"
+          arch = (platform.machine() or "unknown").lower()
+
+          out_dir = Path("artifacts")
+          out_dir.mkdir(exist_ok=True)
+
+          stage = Path("stage")
+          if stage.exists():
+              shutil.rmtree(stage)
+          stage.mkdir()
+
+          dist = Path("dist")
+          # Only ship the built executables
+          for name in ["san", "sansible-playbook"]:
+              exe = dist / (f"{name}.exe" if os.name == "nt" else name)
+              shutil.copy2(exe, stage / exe.name)
+
+          base = out_dir / f"sansible-{v}-{os_name}-{arch}"
+          shutil.make_archive(str(base), "zip", root_dir=stage)
+          print(f"Created: {base}.zip")
+          PY
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sansible-${{ matrix.os }}
+          path: artifacts/*.zip
+          if-no-files-found: error
+
+  release:
+    name: Attach binaries to GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+          merge-multiple: true
+
+      - name: Publish GitHub Release (attach zips)
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-artifacts/*.zip
