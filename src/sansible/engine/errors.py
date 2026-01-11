@@ -168,3 +168,15 @@ class InventoryError(ParseError):
 
     def __init__(self, message: str, file_path: str | None = None) -> None:
         super().__init__(message, file_path=file_path)
+
+
+class VaultError(SansibleError):
+    """Error decrypting vault-encrypted content."""
+
+    exit_code: int = ExitCode.GENERIC_ERROR
+
+    def __init__(self, message: str, file_path: str | None = None) -> None:
+        self.file_path = file_path
+        if file_path:
+            message = f"{message} (file: {file_path})"
+        super().__init__(f"Vault error: {message}")

@@ -59,11 +59,10 @@ TASK_KEYWORDS = {
 
 # Unsupported features that we should error on
 UNSUPPORTED_TASK_KEYS = {
-    'include_role', 'import_role',  # Role includes (we support top-level roles)
     'async', 'poll',  # Async
-    'delegate_to', 'delegate_facts',  # Delegation
+    'delegate_facts',  # Delegation facts (delegate_to is supported)
     'local_action',  # Local action
-    'include', 'include_tasks', 'import_tasks',  # Includes
+    'include',  # Old-style include (deprecated)
 }
 
 
@@ -88,6 +87,7 @@ class Task:
     become_method: Optional[str] = None
     notify: List[str] = field(default_factory=list)  # Handlers to notify
     listen: List[str] = field(default_factory=list)  # Handler triggers
+    delegate_to: Optional[str] = None  # Delegate task to another host
     
     # Original line number for error reporting
     _line_number: Optional[int] = None
@@ -437,7 +437,106 @@ class PlaybookParser:
         """Parse a task or block, returning task(s)."""
         if 'block' in data:
             return self._parse_block(data)
+        if 'include_tasks' in data or 'import_tasks' in data:
+            return self._parse_include_tasks(data)
+        if 'include_role' in data or 'import_role' in data:
+            return self._parse_include_role(data)
         return self._parse_task(data)
+    
+    def _parse_include_tasks(self, data: Dict[str, Any]) -> List[Task]:
+        """
+        Parse include_tasks or import_tasks directive.
+        
+        Both are handled the same way at parse time (static inclusion).
+        """
+        # Get the tasks file path
+        tasks_file = data.get('include_tasks') or data.get('import_tasks')
+        if isinstance(tasks_file, dict):
+            tasks_file = tasks_file.get('file')
+        
+        if not tasks_file:
+            raise ParseError(
+                "include_tasks/import_tasks requires a file path",
+                file_path=str(self.playbook_path)
+            )
+        
+        # Resolve relative to playbook directory
+        tasks_path = self._base_dir / tasks_file
+        if not tasks_path.exists():
+            raise ParseError(
+                f"Tasks file not found: {tasks_file}",
+                file_path=str(self.playbook_path)
+            )
+        
+        # Load and parse the tasks file
+        tasks_data = yaml.safe_load(tasks_path.read_text(encoding='utf-8')) or []
+        if not isinstance(tasks_data, list):
+            raise ParseError(
+                f"Tasks file must contain a list: {tasks_file}",
+                file_path=str(self.playbook_path)
+            )
+        
+        # Parse each task
+        tasks: List[Task] = []
+        include_when = data.get('when')
+        include_tags = self._ensure_list(data.get('tags', []))
+        
+        for task_data in tasks_data:
+            if isinstance(task_data, dict):
+                parsed = self._parse_task_or_block(task_data)
+                parsed_list = parsed if isinstance(parsed, list) else [parsed]
+                for task in parsed_list:
+                    # Apply include-level when condition
+                    if include_when:
+                        if task.when:
+                            task.when = f"({include_when}) and ({task.when})"
+                        else:
+                            task.when = include_when
+                    # Apply include-level tags
+                    if include_tags:
+                        task.tags = list(set(task.tags + include_tags))
+                    tasks.append(task)
+        
+        return tasks
+    
+    def _parse_include_role(self, data: Dict[str, Any]) -> List[Task]:
+        """
+        Parse include_role or import_role directive.
+        """
+        role_data = data.get('include_role') or data.get('import_role')
+        
+        if isinstance(role_data, str):
+            role_name = role_data
+            role_vars: Dict[str, Any] = {}
+        elif isinstance(role_data, dict):
+            role_name = role_data.get('name')
+            role_vars = {k: v for k, v in role_data.items() if k != 'name'}
+        else:
+            raise ParseError(
+                "include_role/import_role requires a role name",
+                file_path=str(self.playbook_path)
+            )
+        
+        if not role_name:
+            raise ParseError(
+                "include_role/import_role requires 'name' parameter",
+                file_path=str(self.playbook_path)
+            )
+        
+        # Get additional vars from the task level
+        if 'vars' in data:
+            role_vars.update(data['vars'])
+        
+        include_when = data.get('when')
+        include_tags = self._ensure_list(data.get('tags', []))
+        
+        # Load the role tasks
+        tasks = self._load_role(
+            {'role': role_name, 'when': include_when, 'tags': include_tags, **role_vars},
+            {}
+        )
+        
+        return tasks
     
     def _parse_block(self, data: Dict[str, Any]) -> List[Task]:
         """
@@ -580,6 +679,9 @@ class PlaybookParser:
         elif not isinstance(notify, list):
             notify = []
         
+        # Parse delegate_to
+        delegate_to = data.get('delegate_to')
+        
         return Task(
             name=data.get('name', f'{module_name} task'),
             module=module_name,
@@ -594,6 +696,7 @@ class PlaybookParser:
             environment=data.get('environment', {}),
             tags=self._ensure_list(data.get('tags', [])),
             notify=notify,
+            delegate_to=delegate_to,
         )
     
     def _normalize_args(self, module_name: str, args: Any) -> Dict[str, Any]:

@@ -90,11 +90,24 @@ Use exceptions from `engine/errors.py` — they define exit codes:
 
 ## Out of Scope (Raise UnsupportedFeatureError)
 
-- `delegate_to`, `async/poll`
-- Galaxy collections, dynamic inventory, vault, lookups
-- `include_tasks`, `import_role`
+- `async/poll`
+- Galaxy collections, lookups
 
 ## Supported Features
+
+**Task Includes:**
+- `include_tasks` / `import_tasks` — load external task files
+- `include_role` / `import_role` — dynamic role inclusion
+- `delegate_to` — execute task on different host
+
+**Dynamic Inventory:**
+- Executable scripts returning JSON
+- Standard Ansible JSON format with `_meta` hostvars
+
+**Vault:**
+- `--vault-password-file` — path to vault password file
+- `--ask-vault-pass` — prompt for vault password
+- Requires `cryptography` package for decryption
 
 **Privilege Escalation:**
 - `become: true/false` — enable/disable privilege escalation

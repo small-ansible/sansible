@@ -153,8 +153,11 @@ san run -i examples/playbooks/inventory.ini examples/playbooks/01_basics.yml -l 
 | Error handling (\`block/rescue/always\`) | ✅ | Try/catch blocks |
 | Privilege escalation (\`become\`) | ✅ | sudo, su |
 | Fact gathering (\`gather_facts\`) | ✅ | OS info |
-| Roles | ✅ | tasks, defaults, vars |
-| Check mode (\`--check\`) | ✅ | Dry run |
+| Roles | ✅ | tasks, defaults, vars || `include_tasks` / `import_tasks` | ✅ | Load external tasks |
+| `include_role` / `import_role` | ✅ | Dynamic role inclusion |
+| `delegate_to` | ✅ | Task delegation |
+| Dynamic inventory | ✅ | Executable scripts |
+| Vault | ✅ | Encrypted vars (requires cryptography) || Check mode (\`--check\`) | ✅ | Dry run |
 | Diff mode (\`--diff\`) | ✅ | Show changes |
 | JSON output (\`--json\`) | ✅ | Machine-readable |
 
@@ -174,7 +177,7 @@ san run -i examples/playbooks/inventory.ini examples/playbooks/01_basics.yml -l 
 san run -i INVENTORY PLAYBOOK [OPTIONS]
 
 Options:
-  -i, --inventory FILE    Inventory file (required)
+  -i, --inventory FILE    Inventory file or directory
   -l, --limit PATTERN     Limit to hosts matching pattern
   -t, --tags TAGS         Only run tagged tasks
   --skip-tags TAGS        Skip tagged tasks
@@ -183,6 +186,8 @@ Options:
   -C, --check             Dry-run mode (no changes)
   --diff                  Show file differences
   --json                  JSON output format
+  --vault-password-file   Path to vault password file
+  --ask-vault-pass        Prompt for vault password
   -v/-vv/-vvv             Verbosity level
 \`\`\`
 
@@ -213,12 +218,8 @@ san run -i inventory.ini playbook.yml --json
 Sansible focuses on core features. These are **not supported**:
 
 - Ansible Galaxy / Collections
-- \`include_tasks\`, \`import_tasks\`, \`import_role\`
-- \`delegate_to\`
-- \`async\` / \`poll\`
-- Vault
+- `async` / `poll`
 - Callbacks / Plugins
-- Dynamic inventory scripts
 
 Unsupported features raise \`UnsupportedFeatureError\` with a clear message.
 
@@ -226,7 +227,7 @@ Unsupported features raise \`UnsupportedFeatureError\` with a clear message.
 
 \`\`\`bash
 # Clone repository
-git clone https://github.com/your-org/sansible.git
+git clone https://github.com/small-ansible/sansible.git
 cd sansible
 
 # Install with dev dependencies

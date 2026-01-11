@@ -50,6 +50,8 @@ class PlaybookRunner:
         verbosity: int = 0,
         extra_vars: Optional[Dict[str, Any]] = None,
         json_output: bool = False,
+        vault_password: Optional[str] = None,
+        vault_password_file: Optional[str] = None,
     ):
         self.inventory_source = inventory_source
         self.playbook_paths = playbook_paths
@@ -60,14 +62,36 @@ class PlaybookRunner:
         self.verbosity = verbosity
         self.extra_vars = extra_vars or {}
         self.json_output = json_output
+        self.vault_password = vault_password
+        self.vault_password_file = vault_password_file
         
         # Components
         self.inventory: Optional[InventoryManager] = None
         self.template_engine = TemplateEngine()
         self.scheduler = Scheduler(forks=forks)
+        self._vault = None
         
         # Connection cache
         self._connections: Dict[str, Connection] = {}
+        
+        # Initialize vault if password provided
+        self._init_vault()
+    
+    def _init_vault(self) -> None:
+        """Initialize vault decryption if password is provided."""
+        if not self.vault_password and not self.vault_password_file:
+            return
+        
+        from sansible.engine.vault import VaultLib, VaultSecret
+        
+        self._vault = VaultLib()
+        
+        if self.vault_password_file:
+            secret = VaultSecret.from_file(self.vault_password_file)
+            self._vault.add_secret(secret)
+        
+        if self.vault_password:
+            self._vault.add_secret(VaultSecret(self.vault_password))
     
     def run(self) -> int:
         """
@@ -299,8 +323,59 @@ class PlaybookRunner:
     async def _run_task_single(self, task: Task, ctx: HostContext) -> TaskResult:
         """Run a single task execution (no loop)."""
         try:
+            # Handle delegate_to - execute on a different host
+            effective_ctx = ctx
+            delegate_connection = None
+            
+            if task.delegate_to:
+                delegate_target = render_recursive(task.delegate_to, ctx.get_vars())
+                if isinstance(delegate_target, str):
+                    delegate_target = delegate_target.strip()
+                    
+                    # Get or create connection for delegate host
+                    if delegate_target in self._connections:
+                        delegate_connection = self._connections[delegate_target]
+                    else:
+                        # Create a temporary host for the delegate target
+                        if delegate_target in ('localhost', '127.0.0.1'):
+                            # Local delegation
+                            from sansible.engine.inventory import Host
+                            delegate_host = Host(delegate_target, {'ansible_connection': 'local'})
+                            delegate_connection = LocalConnection(delegate_host)
+                        elif self.inventory and delegate_target in self.inventory.hosts:
+                            # Known inventory host
+                            delegate_host = self.inventory.hosts[delegate_target]
+                            delegate_connection = self._create_connection(delegate_host)
+                        else:
+                            # Unknown host - create minimal host with SSH
+                            from sansible.engine.inventory import Host
+                            delegate_host = Host(delegate_target, {'ansible_connection': 'ssh'})
+                            delegate_connection = self._create_connection(delegate_host)
+                        
+                        # Connect if not already connected
+                        await delegate_connection.connect()
+                        self._connections[delegate_target] = delegate_connection
+                    
+                    # Create a new context for the delegate host but keep original vars
+                    from sansible.engine.inventory import Host
+                    delegate_host_obj = (
+                        self.inventory.hosts[delegate_target] 
+                        if self.inventory and delegate_target in self.inventory.hosts 
+                        else Host(delegate_target)
+                    )
+                    effective_ctx = HostContext(
+                        host=delegate_host_obj,
+                        check_mode=ctx.check_mode,
+                        diff_mode=ctx.diff_mode,
+                    )
+                    effective_ctx.vars = ctx.vars.copy()
+                    effective_ctx.vars['ansible_delegated_vars'] = {
+                        'ansible_host': delegate_target,
+                    }
+                    effective_ctx.connection = delegate_connection
+            
             # Template the args
-            templated_args = render_recursive(task.args, ctx.get_vars())
+            templated_args = render_recursive(task.args, effective_ctx.get_vars())
             
             # Get the module
             module_class = ModuleRegistry.get(task.module)
@@ -312,8 +387,8 @@ class PlaybookRunner:
                     msg=f"Unknown module: {task.module}",
                 )
             
-            # Create and run the module
-            module = module_class(templated_args, ctx)
+            # Create and run the module (use effective_ctx for execution)
+            module = module_class(templated_args, effective_ctx)
             
             # Validate args
             validation_error = module.validate_args()
@@ -331,7 +406,13 @@ class PlaybookRunner:
             else:
                 result = await module.run()
             
+            # Report result using original host name
             task_result = result.to_task_result(ctx.host.name, task.name)
+            
+            # Add delegate info to result if delegated
+            if task.delegate_to:
+                task_result.results['delegate_to'] = task.delegate_to
+            
             self._print_host_result(
                 ctx.host.name,
                 task_result.status.value,

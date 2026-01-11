@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sansible"
-version = "0.2.0"
+version = "0.3.0"
 description = "Small Ansible - Minimal Ansible-compatible runner for Windows and Linux"
 readme = "README.md"
 license = {text = "MIT"}
@@ -50,9 +50,13 @@ ssh = [
 winrm = [
     "pypsrp>=0.8.0",
 ]
-# Full installation with all connection types
+# Vault decryption support
+vault = [
+    "cryptography>=41.0.0",
+]
+# Full installation with all connection types and vault
 all = [
-    "sansible[ssh,winrm]",
+    "sansible[ssh,winrm,vault]",
 ]
 # Development dependencies
 dev = [
@@ -63,6 +67,7 @@ dev = [
     "mypy>=1.0",
     "ansible-core>=2.15.0",  # Oracle for golden tests
     "docker>=6.0.0",  # Integration tests
+    "cryptography>=41.0.0",  # Vault tests
 ]
 
 [project.scripts]

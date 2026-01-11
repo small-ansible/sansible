@@ -1,11 +1,14 @@
 """
 Sansible Inventory Manager
 
-Parses and manages inventory from INI files, YAML files, and host/group vars directories.
+Parses and manages inventory from INI files, YAML files, dynamic inventory scripts,
+and host/group vars directories.
 """
 
+import json
 import os
 import re
+import subprocess
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
@@ -154,7 +157,7 @@ class InventoryManager:
         Parse an inventory source.
         
         Args:
-            source: Path to inventory file or directory
+            source: Path to inventory file, directory, or executable script
             
         Returns:
             self for chaining
@@ -166,7 +169,12 @@ class InventoryManager:
         
         if source_path.is_file():
             self._inventory_dir = source_path.parent
-            self._parse_file(source_path)
+            
+            # Check if it's an executable (dynamic inventory script)
+            if os.access(source_path, os.X_OK):
+                self._parse_dynamic_inventory(source_path)
+            else:
+                self._parse_file(source_path)
         elif source_path.is_dir():
             self._inventory_dir = source_path
             self._parse_directory(source_path)
@@ -189,6 +197,109 @@ class InventoryManager:
                 host.add_group('ungrouped')
         
         return self
+    
+    def _parse_dynamic_inventory(self, script_path: Path) -> None:
+        """
+        Parse dynamic inventory from an executable script.
+        
+        The script should return JSON when called with --list.
+        """
+        try:
+            result = subprocess.run(
+                [str(script_path), '--list'],
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+            
+            if result.returncode != 0:
+                raise InventoryError(
+                    f"Dynamic inventory script failed: {result.stderr or 'exit code ' + str(result.returncode)}"
+                )
+            
+            try:
+                data = json.loads(result.stdout)
+            except json.JSONDecodeError as e:
+                raise InventoryError(f"Dynamic inventory returned invalid JSON: {e}")
+            
+            # Parse the JSON structure
+            self._parse_dynamic_inventory_data(data, script_path)
+            
+        except subprocess.TimeoutExpired:
+            raise InventoryError("Dynamic inventory script timed out after 60 seconds")
+        except PermissionError:
+            raise InventoryError(f"Cannot execute dynamic inventory script: {script_path}")
+    
+    def _parse_dynamic_inventory_data(self, data: Dict[str, Any], script_path: Path) -> None:
+        """
+        Parse the JSON data from a dynamic inventory script.
+        
+        Expected format:
+        {
+            "group_name": {
+                "hosts": ["host1", "host2"],
+                "vars": {"group_var": "value"},
+                "children": ["child_group"]
+            },
+            "_meta": {
+                "hostvars": {
+                    "host1": {"var1": "value1"}
+                }
+            }
+        }
+        
+        Or simplified format:
+        {
+            "group_name": ["host1", "host2"]
+        }
+        """
+        # Extract hostvars from _meta if present
+        hostvars: Dict[str, Dict[str, Any]] = {}
+        if '_meta' in data and 'hostvars' in data['_meta']:
+            hostvars = data['_meta']['hostvars']
+        
+        for group_name, group_data in data.items():
+            if group_name == '_meta':
+                continue
+            
+            if group_name not in self.groups:
+                self.groups[group_name] = Group(group_name)
+            group = self.groups[group_name]
+            
+            # Handle simplified format: {"group": ["host1", "host2"]}
+            if isinstance(group_data, list):
+                for host_name in group_data:
+                    host_vars = hostvars.get(host_name, {})
+                    if host_name not in self.hosts:
+                        self.hosts[host_name] = Host(host_name, variables=host_vars)
+                    group.add_host(host_name)
+                    self.hosts[host_name].add_group(group_name)
+                continue
+            
+            if not isinstance(group_data, dict):
+                continue
+            
+            # Parse hosts
+            hosts_list = group_data.get('hosts', [])
+            for host_name in hosts_list:
+                host_vars = hostvars.get(host_name, {})
+                if host_name not in self.hosts:
+                    self.hosts[host_name] = Host(host_name, variables=host_vars)
+                group.add_host(host_name)
+                self.hosts[host_name].add_group(group_name)
+            
+            # Parse group vars
+            group_vars = group_data.get('vars', {})
+            for key, value in group_vars.items():
+                group.set_variable(key, value)
+            
+            # Parse children
+            children = group_data.get('children', [])
+            for child_name in children:
+                group.add_child(child_name)
+                if child_name not in self.groups:
+                    self.groups[child_name] = Group(child_name)
+                self.groups[child_name].add_parent(group_name)
     
     def get_hosts(self, pattern: str = "all") -> List[Host]:
         """

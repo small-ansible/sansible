@@ -128,6 +128,28 @@ Examples:
         help="Output results in JSON format",
     )
     
+    # Vault options
+    parser.add_argument(
+        "--vault-password-file",
+        dest="vault_password_file",
+        default=None,
+        help="Path to file containing vault password",
+    )
+    
+    parser.add_argument(
+        "--vault-id",
+        dest="vault_id",
+        default=None,
+        help="Vault identity to use (label@source format)",
+    )
+    
+    parser.add_argument(
+        "--ask-vault-pass",
+        dest="ask_vault_pass",
+        action="store_true",
+        help="Ask for vault password interactively",
+    )
+    
     return parser
 
 
@@ -191,6 +213,14 @@ def main(args: list[str] | None = None) -> int:
     # Parse extra vars
     extra_vars = _parse_extra_vars(parsed.extra_vars)
     
+    # Handle vault password
+    vault_password = None
+    vault_password_file = parsed.vault_password_file
+    
+    if parsed.ask_vault_pass:
+        import getpass
+        vault_password = getpass.getpass("Vault password: ")
+    
     # Create and run the playbook runner
     from sansible.engine.runner import PlaybookRunner
     
@@ -204,6 +234,8 @@ def main(args: list[str] | None = None) -> int:
         verbosity=parsed.verbose,
         extra_vars=extra_vars,
         json_output=parsed.json,
+        vault_password=vault_password,
+        vault_password_file=vault_password_file,
     )
     
     return runner.run()
