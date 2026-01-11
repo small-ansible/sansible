@@ -1,19 +1,21 @@
+# =============================================================================
+# Sansible .gitignore
+# Pure-Python Ansible Runner for Windows & Linux
+# =============================================================================
 
-*.pyc
-*.pyo
-*.egg-info
-
-
+# -----------------------------------------------------------------------------
+# Python Bytecode & Cache
+# -----------------------------------------------------------------------------
 __pycache__/
 *.py[cod]
 *$py.class
-
-# C extensions
 *.so
 *.pyd
 *.dylib
 
-# Distribution / packaging
+# -----------------------------------------------------------------------------
+# Distribution / Packaging
+# -----------------------------------------------------------------------------
 .Python
 build/
 develop-eggs/
@@ -30,16 +32,11 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+MANIFEST
 
-# PyInstaller
-*.manifest
-*.spec
-
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Unit test / coverage reports
+# -----------------------------------------------------------------------------
+# Testing & Coverage
+# -----------------------------------------------------------------------------
 htmlcov/
 .tox/
 .nox/
@@ -52,12 +49,20 @@ coverage.xml
 *.py,cover
 .hypothesis/
 .pytest_cache/
+pytest_cache/
 
-# Translations
-*.mo
-*.pot
+# -----------------------------------------------------------------------------
+# Type Checking
+# -----------------------------------------------------------------------------
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pytype/
+.pyre/
 
-# Environments
+# -----------------------------------------------------------------------------
+# Virtual Environments
+# -----------------------------------------------------------------------------
 .env
 .venv
 env/
@@ -65,30 +70,66 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+.python-version
 
-# IDE
+# -----------------------------------------------------------------------------
+# IDE & Editors
+# -----------------------------------------------------------------------------
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
+*.sublime-project
+*.sublime-workspace
+.spyderproject
+.spyproject
 
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
+# -----------------------------------------------------------------------------
+# OS Generated Files
+# -----------------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
 
-# Upstream reference (read-only, don't commit)
+# -----------------------------------------------------------------------------
+# Project Specific
+# -----------------------------------------------------------------------------
+
+# Upstream Ansible reference (development only, not shipped)
 /upstream/
 
-# OS files
-.DS_Store
-Thumbs.db
-
-# Project specific
+# Agent development logs
 /docs/agent/log/*.md
 !/docs/agent/log/.gitkeep
 
-# E2E test files (contain credentials)
+# E2E test files (may contain credentials)
+/tests/e2e/production_inventory.ini
 /tests/e2e/test_inventory.ini
 /tests/e2e/results/
+
+# PyInstaller spec files (not needed for pure wheel)
+*.spec
+
+# Local configuration
+*.local.yml
+*.local.yaml
+local_*.py
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# Jupyter Notebooks checkpoints
+.ipynb_checkpoints/
+
+# Documentation build artifacts
+/docs/_build/
+/site/

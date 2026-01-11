@@ -1,6 +1,0 @@
-[console_scripts]
-ansible-neo = ansible_neo.cli.main:main
-ansible-neo-compat-scan = ansible_neo.compat_scan:main
-ansible-neo-inventory = ansible_neo.cli.inventory:main
-ansible-neo-playbook = ansible_neo.cli.playbook:main
-neo = ansible_neo.neo_cli:main
