@@ -750,8 +750,8 @@ class PlaybookParser:
                 value = match.group(2) or match.group(3) or match.group(4)
                 parsed[key] = value
             
-            # If no key=value pairs found, treat as free-form (for shell/command/script)
-            if not parsed and module_name in ('command', 'shell', 'raw', 'script', 'win_command', 'win_shell'):
+            # If no key=value pairs found, treat as free-form (for shell/command/script/meta)
+            if not parsed and module_name in ('command', 'shell', 'raw', 'script', 'win_command', 'win_shell', 'meta'):
                 parsed['_raw_params'] = args
             
             return parsed

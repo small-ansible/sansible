@@ -325,13 +325,66 @@ class PlaybookRunner:
         if play.gather_facts:
             await self._gather_facts(host_contexts)
         
-        # Run tasks
+        # Run tasks with block/rescue/always handling
         task_results: List[Dict[str, TaskResult]] = []
         all_task_results: List[TaskResult] = []
         
+        # Track block failure state per host: {host: {block_name: failed}}
+        block_failed: Dict[str, Dict[str, bool]] = {h: {} for h in host_contexts}
+        block_rescued: Dict[str, Dict[str, bool]] = {h: {} for h in host_contexts}
+        
         for task in play.tasks:
-            task_result = await self._run_task(task, host_contexts)
+            # Check if this is a rescue or always task
+            is_rescue = getattr(task, '_is_rescue', False)
+            is_always = getattr(task, '_is_always', False)
+            block_name = getattr(task, '_block_name', None)
+            
+            # Determine which hosts should run this task
+            hosts_to_run = {}
+            for host_name, ctx in host_contexts.items():
+                should_run = True
+                
+                if block_name:
+                    host_block_failed = block_failed.get(host_name, {}).get(block_name, False)
+                    host_block_rescued = block_rescued.get(host_name, {}).get(block_name, False)
+                    
+                    if is_rescue:
+                        # Rescue tasks only run if block failed and not yet rescued
+                        should_run = host_block_failed and not host_block_rescued
+                        if should_run:
+                            # Mark as rescued so subsequent rescue tasks know
+                            block_rescued[host_name][block_name] = True
+                            # Reset host failed state to allow rescue tasks
+                            ctx.failed = False
+                    elif is_always:
+                        # Always tasks run regardless of block state
+                        should_run = True
+                        # Reset host failed state to allow always tasks
+                        if ctx.failed and host_block_failed:
+                            ctx.failed = False
+                    else:
+                        # Normal block tasks only run if block hasn't failed yet
+                        should_run = not host_block_failed
+                
+                if should_run:
+                    hosts_to_run[host_name] = ctx
+            
+            if not hosts_to_run:
+                # Skip task for all hosts
+                self._print_task(task)
+                continue
+            
+            task_result = await self._run_task(task, hosts_to_run)
             task_results.append(task_result)
+            
+            # Update block failure state based on results
+            for host_name, result in task_result.items():
+                if result.status == TaskStatus.FAILED:
+                    if block_name and not is_rescue and not is_always:
+                        block_failed[host_name][block_name] = True
+                        # Don't mark host as permanently failed if there's rescue
+                        # The host.failed state is already set by _run_task_single
+            
             # Flatten for JSON output
             for host_result in task_result.values():
                 all_task_results.append(host_result)
