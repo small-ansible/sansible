@@ -70,13 +70,22 @@ class WinRMConnection(Connection):
         password = self.host.get_variable('ansible_password') or \
                    self.host.get_variable('ansible_winrm_password')
         
-        # Connection options
-        ssl = self.host.get_variable('ansible_winrm_transport', 'ntlm') == 'ssl'
-        if self.host.get_variable('ansible_winrm_scheme', 'http') == 'https':
+        # Connection options - detect SSL/HTTPS
+        # Port 5986 is the default WinRM HTTPS port
+        ssl = False
+        scheme = self.host.get_variable('ansible_winrm_scheme', None)
+        if scheme == 'https':
             ssl = True
-            port = self.host.get_variable('ansible_port', 5986)
+        elif port == 5986 or str(port) == '5986':
+            # Port 5986 implies HTTPS
+            ssl = True
         
-        cert_validation = self.host.get_variable('ansible_winrm_server_cert_validation', True)
+        # Handle cert_validation: 'ignore' or False means no validation
+        cert_val_setting = self.host.get_variable('ansible_winrm_server_cert_validation', True)
+        if cert_val_setting in ('ignore', 'false', False, 'no', 'off', '0'):
+            cert_validation = False
+        else:
+            cert_validation = True
         
         # Authentication method
         auth = self.host.get_variable('ansible_winrm_transport', 'ntlm')
