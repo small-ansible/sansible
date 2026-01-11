@@ -73,9 +73,9 @@ sansible-inventory = "sansible.cli.inventory:main"
 sansible-compat-scan = "sansible.compat_scan:main"
 
 [project.urls]
-Homepage = "https://github.com/sansible/sansible"
-Documentation = "https://github.com/sansible/sansible/docs"
-Repository = "https://github.com/sansible/sansible"
+Homepage = "https://github.com/small-ansible/sansible"
+Documentation = "https://github.com/small-ansible/sansible/docs"
+Repository = "https://github.com/small-ansible/sansible"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
