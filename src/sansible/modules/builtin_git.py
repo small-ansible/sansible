@@ -52,7 +52,7 @@ class GitModule(Module):
         
         # Check if destination exists
         stat_result = await self.connection.stat(dest)
-        repo_exists = stat_result.get("exists", False)
+        repo_exists = stat_result.get("exists", False) if stat_result else False
         
         if not repo_exists and not clone:
             return ModuleResult(

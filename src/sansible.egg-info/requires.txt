@@ -2,7 +2,7 @@ pyyaml>=6.0
 jinja2>=3.0
 
 [all]
-sansible[ssh,winrm]
+sansible[ssh,vault,winrm]
 
 [dev]
 pytest>=7.0
@@ -12,9 +12,13 @@ ruff>=0.1.0
 mypy>=1.0
 ansible-core>=2.15.0
 docker>=6.0.0
+cryptography>=41.0.0
 
 [ssh]
 asyncssh>=2.14.0
+
+[vault]
+cryptography>=41.0.0
 
 [winrm]
 pypsrp>=0.8.0

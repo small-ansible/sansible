@@ -312,8 +312,8 @@ class PlaybookRunner:
             host_name, result = item
             results[host_name] = result
             
-            # Update host context
-            if result.status == TaskStatus.FAILED:
+            # Update host context - only mark as failed if ignore_errors is False
+            if result.status == TaskStatus.FAILED and not task.ignore_errors:
                 host_contexts[host_name].failed = True
             
             # Register result if requested
@@ -325,6 +325,11 @@ class PlaybookRunner:
     async def _run_task_single(self, task: Task, ctx: HostContext) -> TaskResult:
         """Run a single task execution (no loop)."""
         try:
+            # Handle task-level check_mode override
+            original_check_mode = ctx.check_mode
+            if task.check_mode is not None:
+                ctx.check_mode = task.check_mode
+            
             # Handle delegate_to - execute on a different host
             effective_ctx = ctx
             delegate_connection = None
@@ -464,6 +469,10 @@ class PlaybookRunner:
                 status=TaskStatus.FAILED,
                 msg=str(e),
             )
+        finally:
+            # Restore original check_mode if it was overridden
+            if task.check_mode is not None:
+                ctx.check_mode = original_check_mode
     
     async def _run_task_loop(self, task: Task, ctx: HostContext) -> TaskResult:
         """Run a task with loop."""

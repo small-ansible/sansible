@@ -105,6 +105,7 @@ class Task:
     notify: List[str] = field(default_factory=list)  # Handlers to notify
     listen: List[str] = field(default_factory=list)  # Handler triggers
     delegate_to: Optional[str] = None  # Delegate task to another host
+    check_mode: Optional[bool] = None  # Task-level check mode override
     
     # Original line number for error reporting
     _line_number: Optional[int] = None
@@ -704,6 +705,11 @@ class PlaybookParser:
         # Parse delegate_to
         delegate_to = data.get('delegate_to')
         
+        # Parse check_mode (task-level override)
+        check_mode = data.get('check_mode')
+        if check_mode is not None:
+            check_mode = bool(check_mode)
+        
         return Task(
             name=data.get('name', f'{module_name} task'),
             module=module_name,
@@ -719,6 +725,7 @@ class PlaybookParser:
             tags=self._ensure_list(data.get('tags', [])),
             notify=notify,
             delegate_to=delegate_to,
+            check_mode=check_mode,
         )
     
     def _normalize_args(self, module_name: str, args: Any) -> Dict[str, Any]:

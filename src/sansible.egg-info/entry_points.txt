@@ -1,6 +1,5 @@
 [console_scripts]
-san = sansible.san_cli:main
-sansible = sansible.san_cli:main
+sansible = sansible.cli.main:main
 sansible-compat-scan = sansible.compat_scan:main
 sansible-inventory = sansible.cli.inventory:main
 sansible-playbook = sansible.cli.playbook:main

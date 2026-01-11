@@ -1,226 +1,225 @@
-# Sansible Compatibility
+# Sansible Compatibility Matrix
 
-This document defines the **supported subset** of Ansible features in Sansible v0.4.
+This document defines the **tested and verified** features of Sansible v0.4.
 
-> **Last Updated:** Live-tested on RHEL 8.5 (SSH) and Windows Server 2019 (WinRM)
+> **Last Updated:** January 2026  
+> **Test Systems:** Linux RHEL 8.5 (SSH) | Windows Server 2019 (WinRM)
 
-## Supported Features
+## Legend
 
-### Inventory
+| Symbol | Meaning |
+|--------|---------|
+| ✅ L | Tested on Linux |
+| ✅ W | Tested on Windows |
+| ✅ L/W | Tested on both platforms |
+| ⚠️ | Partial support / limitations |
+| ❌ | Not supported |
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| INI format | ✅ Tested | Standard Ansible INI format |
-| YAML format | ✅ Tested | Standard Ansible YAML format |
-| `[group]` sections | ✅ Tested | Host grouping |
-| `[group:children]` | ✅ Tested | Group inheritance |
-| `[group:vars]` | ✅ Tested | Group variables |
-| Host patterns (ranges) | ✅ Tested | `web[01:10].example.com` |
-| Inline host vars | ✅ Tested | `host ansible_host=x ansible_user=y` |
-| `host_vars/` directory | ✅ Tested | Per-host variable files |
-| `group_vars/` directory | ✅ Tested | Per-group variable files |
-| `--limit` pattern | ✅ Tested | Basic patterns |
-| Dynamic inventory | ✅ Supported | JSON format scripts |
+---
 
-### Playbooks
+## Modules
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Multiple plays | ✅ Tested | Sequential execution |
-| `hosts` | ✅ Tested | Required per play |
-| `vars` | ✅ Tested | Play-level variables |
-| `vars_files` | ✅ Tested | YAML files only |
-| `tasks` | ✅ Tested | Task list |
-| `gather_facts: false` | ✅ Tested | Default is false |
-| `gather_facts: true` | ✅ Tested | Gathers OS/hostname facts |
-| `handlers` | ✅ Tested | Handler sections with notify |
-| `roles` | ✅ Tested | tasks, defaults, vars, handlers |
-| `pre_tasks/post_tasks` | ✅ Supported | Before/after main tasks |
-| `strategy` | ⚠️ Linear only | Linear strategy implemented |
+### Core Modules (Platform-independent)
 
-### Tasks
+| Module | Linux | Windows | Status | Notes |
+|--------|:-----:|:-------:|--------|-------|
+| `ping` | ✅ | - | Tested | Connection test |
+| `debug` | ✅ | ✅ | Tested L/W | msg, var output |
+| `set_fact` | ✅ | ✅ | Tested L/W | Variable setting |
+| `assert` | ✅ | ✅ | Tested L/W | Condition assertion |
+| `fail` | ✅ | ✅ | Tested L/W | Intentional failure |
+| `pause` | ✅ | ✅ | Tested L/W | Execution pause |
+| `meta` | ✅ | ✅ | Tested L/W | noop, refresh_inventory |
+| `include_vars` | ✅ | ✅ | Tested L/W | Load YAML vars |
+| `add_host` | ✅ | ✅ | Tested L/W | Dynamic inventory |
+| `group_by` | ✅ | ✅ | Tested L/W | Dynamic grouping |
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| `name` | ✅ Tested | Task description |
-| Module invocation | ✅ Tested | See modules table |
-| FQCN modules | ✅ Tested | `ansible.builtin.*`, `ansible.windows.*` |
-| `args` / inline args | ✅ Tested | Dict or `key=value` format |
-| `register` | ✅ Tested | Capture output |
-| `when` | ✅ Tested | Boolean/Jinja expressions |
-| `loop` / `with_items` | ✅ Tested | List iteration |
-| `loop_control` | ⚠️ Partial | `loop_var` only |
-| `ignore_errors` | ✅ Tested | Continue on failure |
-| `changed_when` | ✅ Tested | Override changed status |
-| `failed_when` | ✅ Tested | Override failed status |
-| `notify` | ✅ Tested | Trigger handlers |
-| `become` | ✅ Tested | sudo, su methods |
-| `become_user` | ✅ Tested | Target user |
-| `become_method` | ✅ Tested | sudo (default), su |
-| `block/rescue/always` | ✅ Tested | Error handling blocks |
-| `tags` | ✅ Tested | Task tagging |
-| `delegate_to` | ✅ Tested | Tested with localhost |
-| `include_tasks` | ✅ Supported | Task file inclusion |
-| `import_tasks` | ✅ Supported | Static task inclusion |
-| `include_role` | ✅ Supported | Dynamic role inclusion |
-| `import_role` | ✅ Supported | Static role inclusion |
-| `async/poll` | ❌ Not supported | Synchronous only |
+### Linux Modules
 
-### Modules
+| Module | Linux | Status | Notes |
+|--------|:-----:|--------|-------|
+| `command` | ✅ | Tested | Execute commands |
+| `shell` | ✅ | Tested | Shell expansion works |
+| `raw` | ✅ | Tested | Raw command execution |
+| `copy` | ✅ | Tested | content, src/dest |
+| `file` | ✅ | Tested | directory, touch, absent |
+| `stat` | ✅ | Tested | File info retrieval |
+| `slurp` | ✅ | Tested | Read file (base64) |
+| `fetch` | ✅ | Tested | Download from remote |
+| `template` | ✅ | Tested | Jinja2 templating |
+| `lineinfile` | ✅ | Tested | Line management |
+| `blockinfile` | ✅ | Tested | Block management |
+| `replace` | ✅ | Tested | Regex replacement |
+| `find` | ✅ | Tested | File discovery |
+| `tempfile` | ✅ | Tested | Create temp files |
+| `setup` | ✅ | Tested | Fact gathering |
+| `wait_for` | ✅ | Tested | Port/file waiting |
+| `wait_for_connection` | ✅ | Tested | Connection waiting |
+| `uri` | ✅ | Tested | HTTP requests |
+| `get_url` | ✅ | Tested | Download from URL |
+| `yum` | ✅ | Tested | RedHat package management |
+| `dnf` | ✅ | Tested | Fedora package management |
+| `apt` | - | Available | Debian package management |
+| `pip` | ✅ | Tested | Python package management |
+| `git` | ✅ | Tested | Git operations |
+| `cron` | ✅ | Tested | Cron job management |
+| `systemd` | ✅ | Tested | Systemd service management |
+| `service` | ✅ | Tested | Service management |
+| `hostname` | ✅ | Tested | Hostname management |
+| `known_hosts` | ✅ | Tested | SSH known hosts |
+| `unarchive` | ✅ | Tested | Archive extraction |
+| `getent` | ✅ | Tested | Name service lookup |
+| `reboot` | ✅ | Tested | System reboot (check mode) |
+| `user` | ✅ | Tested | User management |
+| `group` | ✅ | Tested | Group management |
+| `script` | ⚠️ | Partial | Requires local script file |
 
-#### Linux Modules (45+)
+### Windows Modules
 
-| Module | Status | Notes |
-|--------|--------|-------|
-| `ping` | ✅ Tested | Connection test |
-| `command` | ✅ Tested | No shell processing |
-| `shell` | ✅ Tested | Full shell support |
-| `raw` | ✅ Tested | Direct execution |
-| `copy` | ✅ Tested | File/content copy |
-| `file` | ✅ Tested | Files/directories/links |
-| `template` | ✅ Tested | Jinja2 template rendering |
-| `stat` | ✅ Tested | File status info |
-| `slurp` | ✅ Tested | Read file content (base64) |
-| `fetch` | ✅ Tested | Download files |
-| `find` | ✅ Tested | File discovery |
-| `lineinfile` | ✅ Tested | Line management |
-| `blockinfile` | ✅ Tested | Block management |
-| `replace` | ✅ Tested | Regex replacement |
-| `tempfile` | ✅ Tested | Create temp files |
-| `wait_for` | ✅ Tested | Port/file waiting |
-| `pause` | ✅ Tested | Execution pause |
-| `setup` | ✅ Tested | Fact gathering |
-| `debug` | ✅ Tested | Print messages/vars |
-| `set_fact` | ✅ Tested | Set variables |
-| `fail` | ✅ Tested | Fail with message |
-| `assert` | ✅ Tested | Condition checking |
-| `include_vars` | ✅ Tested | Load YAML vars |
-| `meta` | ✅ Tested | noop, refresh_inventory |
-| `service` | ✅ Tested | Service management (check mode) |
-| `systemd` | ✅ Available | Systemd service management |
-| `user` | ✅ Tested | User management (check mode) |
-| `group` | ✅ Tested | Group management (check mode) |
-| `get_url` | ✅ Available | Download from URL |
-| `uri` | ✅ Available | HTTP requests |
-| `apt` | ✅ Available | Debian package management |
-| `yum` | ✅ Available | RedHat package management |
-| `dnf` | ✅ Available | Fedora package management |
-| `pip` | ✅ Available | Python package management |
-| `git` | ✅ Available | Git operations |
-| `cron` | ✅ Available | Cron job management |
-| `hostname` | ✅ Available | Hostname management |
-| `known_hosts` | ✅ Available | SSH known hosts |
-| `unarchive` | ✅ Available | Archive extraction |
-| `add_host` | ✅ Available | Dynamic inventory |
-| `group_by` | ✅ Available | Dynamic grouping |
-| `getent` | ✅ Available | Name service lookup |
-| `reboot` | ✅ Available | System reboot |
-| `script` | ⚠️ Partial | Requires local script file |
-| `wait_for_connection` | ✅ Available | Connection waiting |
+| Module | Windows | Status | Notes |
+|--------|:-------:|--------|-------|
+| `win_ping` | ✅ | Tested | Returns pong |
+| `win_command` | ✅ | Tested | Execute cmd commands |
+| `win_shell` | ✅ | Tested | PowerShell execution |
+| `win_copy` | ✅ | Tested | File copy with content |
+| `win_file` | ✅ | Tested | directory, absent states |
+| `win_stat` | ✅ | Tested | File info retrieval |
+| `win_slurp` | ✅ | Tested | Read file content |
+| `win_template` | ⚠️ | Partial | Requires local template |
+| `win_lineinfile` | ✅ | Tested | Line management |
+| `win_service` | ✅ | Tested | Service management |
+| `win_wait_for` | ✅ | Tested | Port/file waiting |
+| `win_user` | ✅ | Tested | User management |
+| `win_group` | ✅ | Tested | Group management |
+| `win_reboot` | ✅ | Tested | System reboot (check mode) |
+| `win_get_url` | ✅ | Tested | Download from URL |
+| `win_hostname` | ✅ | Tested | Hostname management |
 
-#### Windows Modules (18+)
+---
 
-| Module | Status | Notes |
-|--------|--------|-------|
-| `win_ping` | ✅ Tested | Connection test |
-| `win_command` | ✅ Tested | Windows cmd.exe |
-| `win_shell` | ✅ Tested | Windows PowerShell |
-| `win_copy` | ✅ Tested | Windows file copy |
-| `win_file` | ✅ Tested | Windows files/directories |
-| `win_stat` | ✅ Tested | File status info |
-| `win_slurp` | ✅ Tested | Read file content |
-| `win_template` | ⚠️ Partial | Requires local template |
-| `win_service` | ✅ Tested | Service management |
-| `win_lineinfile` | ✅ Tested | Line management |
-| `win_wait_for` | ✅ Tested | Port/file waiting |
-| `win_reboot` | ✅ Tested | System reboot (check mode) |
-| `win_user` | ✅ Available | User management |
-| `win_group` | ✅ Available | Group management |
-| `win_get_url` | ✅ Available | Download from URL |
-| `win_acl` | ✅ Available | ACL management |
-| `win_environment` | ✅ Available | Environment variables |
-| `win_registry` | ✅ Available | Registry management |
+## Galaxy FQCN Support
 
-### Galaxy FQCN Support
+| Namespace | Linux | Windows | Notes |
+|-----------|:-----:|:-------:|-------|
+| `ansible.builtin.*` | ✅ | ✅ | Maps to native modules |
+| `ansible.windows.*` | - | ✅ | Maps to native win_* modules |
+| `ansible.posix.*` | ✅ | - | Remote execution on Linux |
+| `community.general.*` | ✅ | - | Remote execution on Linux |
 
-| Namespace | Status | Notes |
-|-----------|--------|-------|
-| `ansible.builtin.*` | ✅ Tested | Maps to native modules |
-| `ansible.windows.*` | ✅ Tested | Maps to native win_* modules |
-| `ansible.posix.*` | ✅ Supported | Remote execution on Linux |
-| `community.general.*` | ✅ Supported | Remote execution on Linux |
+---
 
-See [GALAXY.md](GALAXY.md) for detailed Galaxy support documentation.
+## Playbook Features
 
-### Templating
+| Feature | Linux | Windows | Status |
+|---------|:-----:|:-------:|--------|
+| Multiple plays | ✅ | ✅ | Tested L/W |
+| `vars` | ✅ | ✅ | Tested L/W |
+| `vars_files` | ✅ | ✅ | Tested L/W |
+| `gather_facts` | ✅ | ✅ | Tested L/W |
+| `when` conditionals | ✅ | ✅ | Tested L/W |
+| `loop` / `with_items` | ✅ | ✅ | Tested L/W |
+| `register` | ✅ | ✅ | Tested L/W |
+| `changed_when` / `failed_when` | ✅ | ✅ | Tested L/W |
+| `ignore_errors` | ✅ | ✅ | Tested L/W |
+| `handlers` / `notify` | ✅ | ✅ | Tested L/W |
+| `check_mode` (global) | ✅ | ✅ | Tested L/W |
+| `check_mode` (task-level) | ✅ | ✅ | Tested L/W |
+| `diff` mode | ✅ | ✅ | Tested L/W |
+| `tags` / `skip-tags` | ✅ | ✅ | Tested L/W |
+| `become` (sudo) | ✅ | - | Tested L |
+| `delegate_to` | ✅ | ✅ | Tested L/W |
+| `block/rescue/always` | ✅ | ✅ | Tested L/W |
+| `include_tasks` / `import_tasks` | ✅ | ✅ | Tested L/W |
+| `include_role` / `import_role` | ✅ | ✅ | Tested L/W |
+| Roles | ✅ | ✅ | Tested L/W |
+| Vault | ✅ | ✅ | Tested L/W |
+| Dynamic inventory | ✅ | ✅ | JSON scripts |
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| `{{ variable }}` | ✅ Tested | Variable interpolation |
-| Jinja2 expressions | ✅ Tested | In strings |
-| `default` / `d` filter | ✅ Tested | Default values |
-| `lower` / `upper` | ✅ Tested | Case conversion |
-| `replace` | ✅ Tested | String replacement |
-| `to_json` | ✅ Tested | JSON serialization |
-| `to_yaml` | ✅ Tested | YAML serialization |
-| `trim` | ✅ Tested | Whitespace trimming |
-| `join` | ✅ Tested | List joining |
-| `first` / `last` | ✅ Tested | List access |
-| `length` | ✅ Tested | Collection size |
-| `int` / `bool` / `string` | ✅ Tested | Type conversion |
-| `basename` / `dirname` | ✅ Tested | Path manipulation |
-| `regex_replace` | ✅ Tested | Regex substitution |
-| `b64encode` / `b64decode` | ✅ Tested | Base64 encoding |
-| `is defined` test | ✅ Tested | Variable existence |
-| `is undefined` test | ✅ Tested | Variable non-existence |
-| `is string/number` | ✅ Tested | Type checking |
-| Custom filters | ❌ Not supported | Built-in only |
-| `lookup()` | ❌ Not supported | No lookups |
+---
 
-### Connections
+## Jinja2 Filters
 
-| Type | Status | Dependency | Notes |
-|------|--------|------------|-------|
-| `local` | ✅ Tested | None | Control node execution |
-| `ssh` | ✅ Tested | `asyncssh` | Linux/Unix hosts |
-| `winrm` | ✅ Tested | `pypsrp` | Windows hosts |
+| Filter | Linux | Windows | Notes |
+|--------|:-----:|:-------:|-------|
+| `default` / `d` | ✅ | ✅ | Default values |
+| `lower` / `upper` | ✅ | ✅ | Case conversion |
+| `replace` | ✅ | ✅ | String replacement |
+| `to_json` | ✅ | ✅ | JSON serialization |
+| `to_yaml` | ✅ | ✅ | YAML serialization |
+| `trim` | ✅ | ✅ | Whitespace trimming |
+| `join` | ✅ | ✅ | List joining |
+| `first` / `last` | ✅ | ✅ | List access |
+| `length` | ✅ | ✅ | Collection size |
+| `int` / `bool` / `string` | ✅ | ✅ | Type conversion |
+| `basename` / `dirname` | ✅ | ✅ | Path manipulation |
+| `regex_replace` | ✅ | ✅ | Regex substitution |
+| `b64encode` / `b64decode` | ✅ | ✅ | Base64 encoding |
 
-### CLI Options
+---
 
-| Option | Status | Notes |
-|--------|--------|-------|
-| `-i, --inventory` | ✅ Tested | Inventory file/directory |
-| `-l, --limit` | ✅ Tested | Host pattern limiting |
-| `-t, --tags` | ✅ Tested | Run specific tags |
-| `--skip-tags` | ✅ Tested | Skip specific tags |
-| `-e, --extra-vars` | ✅ Tested | Extra variables |
-| `-f, --forks` | ✅ Tested | Parallel execution |
-| `-C, --check` | ✅ Tested | Dry-run mode |
-| `--diff` | ✅ Tested | Show file differences |
-| `--json` | ✅ Tested | JSON output format |
-| `--vault-password-file` | ✅ Supported | Vault password |
-| `--ask-vault-pass` | ✅ Supported | Prompt for vault |
-| `-v/-vv/-vvv` | ✅ Tested | Verbosity levels |
+## Connections
 
-### Vault
+| Connection | Status | Notes |
+|------------|--------|-------|
+| `local` | ✅ Tested | Control node execution |
+| `ssh` | ✅ Tested L | asyncssh, Linux/Unix hosts |
+| `winrm` | ✅ Tested W | pypsrp, Windows hosts |
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| `--vault-password-file` | ✅ Supported | File with password |
-| `--ask-vault-pass` | ✅ Supported | Interactive prompt |
-| AES256 encrypted files | ✅ Supported | Requires `cryptography` |
+---
+
+## CLI Options
+
+| Option | Linux | Windows | Notes |
+|--------|:-----:|:-------:|-------|
+| `-i, --inventory` | ✅ | ✅ | Inventory file/directory |
+| `-l, --limit` | ✅ | ✅ | Host pattern limiting |
+| `-t, --tags` | ✅ | ✅ | Run specific tags |
+| `--skip-tags` | ✅ | ✅ | Skip specific tags |
+| `-e, --extra-vars` | ✅ | ✅ | Extra variables |
+| `-f, --forks` | ✅ | ✅ | Parallel execution |
+| `-C, --check` | ✅ | ✅ | Dry-run mode |
+| `--diff` | ✅ | ✅ | Show file differences |
+| `--json` | ✅ | ✅ | JSON output format |
+| `--vault-password-file` | ✅ | ✅ | Vault password |
+| `--ask-vault-pass` | ✅ | ✅ | Prompt for vault |
+| `-v/-vv/-vvv` | ✅ | ✅ | Verbosity levels |
+
+---
 
 ## Not Supported
 
-The following features are **explicitly not supported** and will raise `UnsupportedFeatureError`:
+| Feature | Reason |
+|---------|--------|
+| `async` / `poll` | Asynchronous task execution |
+| `lookup()` functions | Complex Jinja2 lookups |
+| Callbacks / Plugins | Architecture limitation |
+| Galaxy install (`ansible-galaxy`) | Out of scope |
+| Network device connections | netconf, etc. |
+| Custom Jinja2 filters | Built-in only |
 
-- `async` / `poll` (asynchronous task execution)
-- `lookup()` functions  
-- Callbacks / Plugins
-- Galaxy collections install (`ansible-galaxy`)
-- Network device connections (netconf, etc.)
-- Custom Jinja2 filters/tests
-- Complex variable precedence (simplified merging)
+---
+
+## Test Coverage
+
+### Unit Tests: 269 Passed ✅
+
+All core functionality has comprehensive unit test coverage.
+
+### Live System Tests
+
+| Target | Connection | Modules Tested | Status |
+|--------|------------|----------------|--------|
+| Linux RHEL 8.5 | SSH | 35+ | ✅ All passing |
+| Windows Server 2019 | WinRM | 14+ | ✅ All passing |
+
+### Key Fixes in v0.4.0
+
+- Fixed `ignore_errors` not preventing host failure flag
+- Added task-level `check_mode` support
+- Fixed git module null stat handling
+- Added `b64decode` and `b64encode` filters
+
+---
 
 ## Exit Codes
 
@@ -230,38 +229,3 @@ The following features are **explicitly not supported** and will raise `Unsuppor
 | 2 | Host failure(s) occurred |
 | 3 | Parse/syntax error |
 | 4 | Unsupported feature used |
-
-## Test Coverage
-
-### Unit Tests: 269 Passed
-
-All core functionality has unit test coverage:
-
-- Playbook parsing and execution
-- Module execution (mock connections)
-- Templating and filters
-- Inventory parsing
-- Handlers and blocks
-- Tags and limits
-- Vault decryption
-- Galaxy FQCN resolution
-
-### Live System Tests
-
-| Target | Platform | Status |
-|--------|----------|--------|
-| Linux SSH | RHEL 8.5 | ✅ All modules working |
-| Windows WinRM | Server 2019 | ✅ All modules working |
-
-Run tests:
-
-```bash
-# Unit tests
-pytest tests/unit/ -v
-
-# Golden tests (compare vs ansible-playbook)
-pytest tests/golden/ -v
-
-# Integration tests (requires Docker)
-pytest tests/integration/ -v
-```
