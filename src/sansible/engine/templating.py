@@ -4,6 +4,7 @@ Sansible Templating Engine
 Jinja2-based templating with a minimal filter set for variable expansion.
 """
 
+import base64
 import json
 import re
 from typing import Any, Callable, Dict, List, Optional, Union
@@ -50,6 +51,18 @@ def _filter_regex_replace(value: str, pattern: str, replacement: str) -> str:
     return re.sub(pattern, replacement, str(value))
 
 
+def _filter_b64decode(value: str) -> str:
+    """Decode base64 encoded string."""
+    return base64.b64decode(value).decode('utf-8')
+
+
+def _filter_b64encode(value: str) -> str:
+    """Encode string to base64."""
+    if isinstance(value, bytes):
+        return base64.b64encode(value).decode('utf-8')
+    return base64.b64encode(value.encode('utf-8')).decode('utf-8')
+
+
 # Export custom filters as a dictionary for reuse
 CUSTOM_FILTERS: Dict[str, Callable[..., Any]] = {
     'default': _filter_default,
@@ -70,6 +83,8 @@ CUSTOM_FILTERS: Dict[str, Callable[..., Any]] = {
     'basename': _filter_basename,
     'dirname': _filter_dirname,
     'regex_replace': _filter_regex_replace,
+    'b64decode': _filter_b64decode,
+    'b64encode': _filter_b64encode,
 }
 
 
