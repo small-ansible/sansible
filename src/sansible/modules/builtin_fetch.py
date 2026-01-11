@@ -6,6 +6,7 @@ Fetch files from remote to control node.
 
 import os
 import base64
+from pathlib import Path
 
 from sansible.modules.base import Module, ModuleResult, register_module
 
@@ -56,11 +57,11 @@ class FetchModule(Module):
         
         # Determine local destination path
         if flat:
-            local_dest = dest
+            local_dest = Path(dest)
         else:
             # Build path: dest/hostname/src_path
-            hostname = self.host.name if hasattr(self, 'host') else "localhost"
-            local_dest = os.path.join(dest, hostname, src.lstrip("/"))
+            hostname = self.host.name if self.host else "localhost"
+            local_dest = Path(dest) / hostname / src.lstrip("/")
         
         # Check mode - don't actually fetch
         if self.check_mode:
@@ -83,7 +84,7 @@ class FetchModule(Module):
             )
         
         # Verify fetch
-        if not os.path.exists(local_dest):
+        if not local_dest.exists():
             return ModuleResult(
                 failed=True,
                 msg=f"File was not fetched to {local_dest}",
@@ -93,7 +94,7 @@ class FetchModule(Module):
             changed=True,
             msg=f"Successfully fetched {src} to {local_dest}",
             results={
-                "dest": local_dest,
+                "dest": str(local_dest),
                 "src": src,
                 "checksum": stat_result.get("checksum", ""),
                 "size": stat_result.get("size", 0),

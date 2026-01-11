@@ -71,6 +71,21 @@ class Module(ABC):
         self.context = context
         self.connection = context.connection
     
+    @property
+    def check_mode(self) -> bool:
+        """Whether running in check (dry-run) mode."""
+        return self.context.check_mode if self.context else False
+    
+    @property
+    def diff_mode(self) -> bool:
+        """Whether running in diff mode."""
+        return self.context.diff_mode if self.context else False
+    
+    @property
+    def host(self):
+        """Get the host object from context."""
+        return self.context.host if self.context else None
+    
     def validate_args(self) -> Optional[str]:
         """
         Validate module arguments.
