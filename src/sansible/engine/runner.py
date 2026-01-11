@@ -296,7 +296,7 @@ class PlaybookRunner:
             return PlayResult(
                 play_name=play.name,
                 hosts=[],
-                tasks=[],
+                task_results=[],
                 host_stats={},
             )
         
@@ -632,7 +632,7 @@ class PlaybookRunner:
     async def _run_task_loop(self, task: Task, ctx: HostContext) -> TaskResult:
         """Run a task with loop."""
         loop_items = task.loop
-        loop_var = task.loop_control.get('loop_var', 'item') if task.loop_control else 'item'
+        loop_var = task.loop_var if hasattr(task, 'loop_var') and task.loop_var else 'item'
         
         all_changed = False
         all_results = []

@@ -94,6 +94,7 @@ class Task:
     when: Optional[str] = None
     loop: Optional[List[Any]] = None
     loop_var: str = "item"
+    loop_control: Optional[Dict[str, Any]] = None
     ignore_errors: bool = False
     changed_when: Optional[str] = None
     failed_when: Optional[str] = None
@@ -722,6 +723,7 @@ class PlaybookParser:
             when=when,
             loop=loop,
             loop_var=loop_var,
+            loop_control=data.get('loop_control'),
             ignore_errors=data.get('ignore_errors', False),
             changed_when=data.get('changed_when'),
             failed_when=data.get('failed_when'),

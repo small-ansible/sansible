@@ -87,7 +87,7 @@ class CopyModule(Module):
         import tempfile
         
         # Write content to temp file
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.tmp') as f:
+        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.tmp', newline='\n') as f:
             f.write(content)
             temp_path = Path(f.name)
         
