@@ -14,6 +14,10 @@ import yaml
 from sansible.engine.errors import ParseError, UnsupportedFeatureError
 
 
+# Pattern for Galaxy collection module names (namespace.collection.module)
+GALAXY_MODULE_PATTERN = re.compile(r'^[a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*$')
+
+
 # Known module names and their aliases (FQCN -> short name)
 MODULE_ALIASES = {
     'ansible.builtin.copy': 'copy',
@@ -646,12 +650,17 @@ class PlaybookParser:
                 module_name = normalized
                 module_args = value
                 break
+            elif GALAXY_MODULE_PATTERN.match(key):
+                # Galaxy module (namespace.collection.module format)
+                module_name = key
+                module_args = value
+                break
             elif key not in TASK_KEYWORDS:
                 # Unknown module - check if it looks like a module call
                 if value is not None or '.' in key:
                     raise UnsupportedFeatureError(
                         f"Module '{key}' is not supported",
-                        suggestion="Only copy, command, shell, raw, debug, set_fact, fail, assert, and win_* modules are supported in v0.1"
+                        suggestion="Only copy, command, shell, raw, debug, set_fact, fail, assert, and win_* modules are supported, or use Galaxy modules (namespace.collection.module format)"
                     )
         
         if module_name is None:

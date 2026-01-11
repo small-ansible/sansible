@@ -25,6 +25,8 @@ from sansible.engine.scheduler import Scheduler, HostContext
 from sansible.engine.templating import TemplateEngine, render_recursive, evaluate_when
 from sansible.engine.errors import SansibleError, ParseError, UnsupportedFeatureError, ModuleError
 from sansible.modules.base import Module, ModuleResult, ModuleRegistry
+from sansible.galaxy.loader import GalaxyModuleLoader
+from sansible.galaxy.module import GalaxyModule
 
 
 class PlaybookRunner:
@@ -377,18 +379,45 @@ class PlaybookRunner:
             # Template the args
             templated_args = render_recursive(task.args, effective_ctx.get_vars())
             
-            # Get the module
-            module_class = ModuleRegistry.get(task.module)
-            if not module_class:
-                return TaskResult(
-                    host=ctx.host.name,
-                    task_name=task.name,
-                    status=TaskStatus.FAILED,
-                    msg=f"Unknown module: {task.module}",
-                )
+            # Module resolution logic
+            module = None
+            module_class = None
             
-            # Create and run the module (use effective_ctx for execution)
-            module = module_class(templated_args, effective_ctx)
+            # Check if this is a Galaxy FQCN (namespace.collection.module format)
+            if GalaxyModuleLoader.is_galaxy_module(task.module):
+                # Try to map to native Sansible module first
+                native_name = self._fqcn_to_native_module(task.module)
+                if native_name:
+                    module_class = ModuleRegistry.get(native_name)
+                
+                if module_class:
+                    # Use native Sansible implementation
+                    module = module_class(templated_args, effective_ctx)
+                else:
+                    # Use Galaxy module execution (requires Ansible on target)
+                    # Check if target is Windows - Galaxy execution won't work
+                    is_windows = effective_ctx.host.get_variable('ansible_os_family', '').lower() == 'windows' or \
+                                 effective_ctx.host.get_variable('ansible_connection', '') == 'winrm'
+                    if is_windows:
+                        return TaskResult(
+                            host=ctx.host.name,
+                            task_name=task.name,
+                            status=TaskStatus.FAILED,
+                            msg=f"Galaxy module '{task.module}' cannot be executed on Windows targets. "
+                                f"Ansible control node cannot run on Windows. Use native Sansible win_* modules instead.",
+                        )
+                    module = GalaxyModule(task.module, templated_args, effective_ctx)
+            else:
+                # Standard module lookup
+                module_class = ModuleRegistry.get(task.module)
+                if not module_class:
+                    return TaskResult(
+                        host=ctx.host.name,
+                        task_name=task.name,
+                        status=TaskStatus.FAILED,
+                        msg=f"Unknown module: {task.module}",
+                    )
+                module = module_class(templated_args, effective_ctx)
             
             # Validate args
             validation_error = module.validate_args()
@@ -413,10 +442,17 @@ class PlaybookRunner:
             if task.delegate_to:
                 task_result.results['delegate_to'] = task.delegate_to
             
+            # For debug module or verbose mode, show the message
+            show_msg = (
+                task_result.status == TaskStatus.FAILED or
+                task.module == 'debug' or
+                self.verbosity > 0
+            )
+            
             self._print_host_result(
                 ctx.host.name,
                 task_result.status.value,
-                task_result.msg if task_result.status == TaskStatus.FAILED else None,
+                task_result.msg if show_msg else None,
             )
             return task_result
             
@@ -664,6 +700,39 @@ class PlaybookRunner:
         """Print a warning message."""
         if not self.json_output:
             print(f"\033[33m[WARNING]: {msg}\033[0m", file=sys.stderr)
+    
+    def _fqcn_to_native_module(self, fqcn: str) -> Optional[str]:
+        """
+        Map a Galaxy FQCN to its native Sansible module name if available.
+        
+        Examples:
+            ansible.builtin.copy -> copy
+            ansible.windows.win_ping -> win_ping
+            ansible.builtin.debug -> debug
+            
+        Returns:
+            Native module name if mapping exists, None otherwise.
+        """
+        parts = fqcn.split('.')
+        if len(parts) != 3:
+            return None
+            
+        namespace, collection, module_name = parts
+        
+        # ansible.builtin.* -> module_name (copy, file, etc.)
+        if namespace == 'ansible' and collection == 'builtin':
+            return module_name
+        
+        # ansible.windows.* -> module_name (already win_* prefixed)
+        if namespace == 'ansible' and collection == 'windows':
+            return module_name
+        
+        # ansible.posix.* -> module_name (if we have native implementations)
+        if namespace == 'ansible' and collection == 'posix':
+            return module_name
+            
+        # Other collections - no native mapping
+        return None
     
     def _print_error(self, msg: str) -> None:
         """Print an error message (always print, even with JSON mode - errors go to stderr)."""

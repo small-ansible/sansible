@@ -123,6 +123,13 @@ Use exceptions from `engine/errors.py` — they define exit codes:
 - `notify` — trigger handlers on task change
 - `listen` — handler can listen to multiple triggers
 
+**Galaxy Module Support:**
+- FQCNs like `ansible.builtin.copy` — automatically maps to native modules
+- `ansible.windows.*` — maps to native `win_*` modules
+- `ansible.posix.*`, `community.general.*` — executed via remote Ansible on Linux targets
+- Windows Galaxy modules — falls back to native or returns clear error
+- See [docs/GALAXY.md](docs/GALAXY.md) for full details
+
 ## Supported Modules
 
 **Linux (builtin_*.py):**
