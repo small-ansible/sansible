@@ -1,0 +1,51 @@
+---
+# Sansible Acceptance Test: WinRM Transport
+# Tests controller -> Windows target over WinRM
+
+- name: Test WinRM transport
+  hosts: windows
+  gather_facts: false
+  
+  tasks:
+    - name: Ping test
+      win_ping:
+    
+    - name: Run command on remote Windows host
+      win_command: hostname
+      register: hostname_result
+    
+    - name: Display hostname
+      debug:
+        msg: "Remote Windows host: {{ hostname_result.stdout }}"
+    
+    - name: Get system info
+      win_command: systeminfo
+      register: sysinfo_result
+    
+    - name: Display OS info
+      debug:
+        msg: "{{ sysinfo_result.stdout_lines[:5] }}"
+    
+    - name: Create test file
+      win_copy:
+        content: "Copied by sansible via WinRM"
+        dest: C:\Temp\sansible_winrm_test.txt
+    
+    - name: Read file back
+      win_command: type C:\Temp\sansible_winrm_test.txt
+      register: file_content
+    
+    - name: Verify file content
+      assert:
+        that:
+          - "'sansible' in file_content.stdout"
+        fail_msg: "File content verification failed"
+    
+    - name: Clean up test file
+      win_file:
+        path: C:\Temp\sansible_winrm_test.txt
+        state: absent
+    
+    - name: WinRM transport success
+      debug:
+        msg: "WinRM transport tests passed for {{ hostname_result.stdout }}!"

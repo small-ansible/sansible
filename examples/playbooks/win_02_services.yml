@@ -1,0 +1,69 @@
+---
+# Sansible Examples - Windows Service Management
+#
+# Demonstrates: win_service module
+#
+# Run with:
+#   san run -i examples/inventory.ini examples/playbooks/win_02_services.yml -l windows
+
+- name: Windows Service Management Examples
+  hosts: windows
+  gather_facts: false
+
+  vars:
+    service_name: wuauserv  # Windows Update service
+
+  tasks:
+    # --- Get service status ---
+    - name: Get service information
+      win_shell: |
+        $svc = Get-Service -Name "{{ service_name }}" -ErrorAction SilentlyContinue
+        if ($svc) {
+          Write-Output "Name: $($svc.Name)"
+          Write-Output "Status: $($svc.Status)"
+          Write-Output "StartType: $($svc.StartType)"
+        } else {
+          Write-Output "Service not found"
+        }
+      register: service_info
+
+    - name: Show service info
+      debug:
+        var: service_info.stdout_lines
+
+    # --- Start a service ---
+    - name: Ensure service is running
+      win_service:
+        name: "{{ service_name }}"
+        state: started
+      ignore_errors: true  # May require admin rights
+
+    # --- Stop a service ---
+    - name: Stop the service
+      win_service:
+        name: "{{ service_name }}"
+        state: stopped
+      ignore_errors: true
+
+    # --- Restart a service ---
+    - name: Restart the service
+      win_service:
+        name: "{{ service_name }}"
+        state: restarted
+      ignore_errors: true
+
+    # --- Set start mode ---
+    - name: Set service to automatic start
+      win_service:
+        name: "{{ service_name }}"
+        start_mode: auto
+      ignore_errors: true
+
+    # --- Final status ---
+    - name: Get final status
+      win_shell: Get-Service -Name "{{ service_name }}" | Select-Object Name, Status, StartType | Format-List
+      register: final_status
+
+    - name: Show final status
+      debug:
+        var: final_status.stdout

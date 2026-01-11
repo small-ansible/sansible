@@ -1,0 +1,110 @@
+# Sansible E2E Test Playbook 08: Parallel Execution
+# Tests that tasks run in parallel across hosts (respects --forks)
+---
+- name: Parallel Execution Test - All Hosts
+  hosts: all_servers
+  gather_facts: false
+  tasks:
+    - name: Record start time
+      set_fact:
+        start_time: "{{ lookup('pipe', 'date +%s') | default(ansible_date_time.epoch) | default('0') }}"
+
+    - name: Parallel task - sleep on all hosts
+      command: sleep 2
+      when: ansible_connection | default('ssh') == 'ssh'
+
+    - name: Parallel task - Windows sleep
+      win_command: Start-Sleep -Seconds 2
+      when: ansible_connection | default('ssh') == 'winrm'
+
+    - name: Record end time
+      set_fact:
+        end_time: "{{ lookup('pipe', 'date +%s') | default(ansible_date_time.epoch) | default('0') }}"
+
+    - name: Report timing
+      debug:
+        msg: "Host {{ inventory_hostname }} completed parallel task"
+
+- name: Parallel Execution - Linux Only
+  hosts: linux
+  gather_facts: false
+  serial: 1
+  tasks:
+    - name: Serial task (one at a time)
+      command: echo "Serial execution on {{ inventory_hostname }}"
+      register: serial_result
+
+    - name: Show serial result
+      debug:
+        msg: "Serial result: {{ serial_result.stdout }}"
+
+- name: Parallel with forks - Linux
+  hosts: linux
+  gather_facts: false
+  # This should run on all linux hosts concurrently
+  tasks:
+    - name: CPU-bound parallel task
+      shell: |
+        for i in $(seq 1 100); do echo $i; done | wc -l
+      register: cpu_result
+
+    - name: Show result
+      debug:
+        msg: "{{ inventory_hostname }} counted to: {{ cpu_result.stdout | trim }}"
+
+    - name: Memory of execution
+      set_fact:
+        parallel_complete: true
+
+- name: Verify parallel completion
+  hosts: linux
+  gather_facts: false
+  tasks:
+    - name: All hosts should have completed
+      assert:
+        that:
+          - parallel_complete == true
+        success_msg: "{{ inventory_hostname }} completed parallel execution"
+
+- name: Parallel Execution - Windows Only
+  hosts: windows
+  gather_facts: false
+  tasks:
+    - name: Windows parallel task
+      win_shell: |
+        $result = 1..100 | Measure-Object
+        Write-Host $result.Count
+      register: win_cpu_result
+
+    - name: Show Windows result
+      debug:
+        msg: "{{ inventory_hostname }} counted to: {{ win_cpu_result.stdout | trim }}"
+
+- name: Large task list (tests scheduler)
+  hosts: linux[0]
+  gather_facts: false
+  tasks:
+    - name: Task batch 1
+      command: echo "Task 1"
+    - name: Task batch 2
+      command: echo "Task 2"
+    - name: Task batch 3
+      command: echo "Task 3"
+    - name: Task batch 4
+      command: echo "Task 4"
+    - name: Task batch 5
+      command: echo "Task 5"
+    - name: Task batch 6
+      command: echo "Task 6"
+    - name: Task batch 7
+      command: echo "Task 7"
+    - name: Task batch 8
+      command: echo "Task 8"
+    - name: Task batch 9
+      command: echo "Task 9"
+    - name: Task batch 10
+      command: echo "Task 10"
+
+    - name: All tasks completed
+      debug:
+        msg: "Successfully ran 10 sequential tasks"

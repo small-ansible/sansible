@@ -1,0 +1,63 @@
+---
+# Sansible Examples - Gather Facts
+#
+# Demonstrates: gather_facts, setup module, ansible_facts
+#
+# Run with:
+#   san run -i examples/inventory.ini examples/playbooks/07_gather_facts.yml -l localhost
+
+- name: Gather Facts Examples
+  hosts: localhost
+  gather_facts: true  # Enable fact gathering
+
+  tasks:
+    # --- Access ansible_facts ---
+    - name: Show hostname
+      debug:
+        msg: "Hostname: {{ ansible_hostname }}"
+
+    - name: Show OS family
+      debug:
+        msg: "OS Family: {{ ansible_os_family }}"
+
+    - name: Show distribution
+      debug:
+        msg: "Distribution: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+
+    - name: Show all facts
+      debug:
+        var: ansible_facts
+
+    # --- Conditional based on facts ---
+    - name: Linux-specific task
+      debug:
+        msg: "This is a Linux system!"
+      when: ansible_os_family == "Linux" or ansible_os_family == "Debian" or ansible_os_family == "RedHat"
+
+    - name: Ubuntu-specific task
+      debug:
+        msg: "This is Ubuntu!"
+      when: ansible_distribution == "Ubuntu"
+
+    - name: CentOS/RHEL task
+      debug:
+        msg: "This is CentOS/RHEL!"
+      when: ansible_distribution in ["CentOS", "RedHat", "Rocky", "AlmaLinux"]
+
+# --- Separate play without facts ---
+- name: Play without fact gathering
+  hosts: localhost
+  gather_facts: false
+
+  tasks:
+    - name: Facts not available here
+      debug:
+        msg: "This play did not gather facts"
+
+    # --- Manual fact gathering ---
+    - name: Gather facts manually
+      setup:
+
+    - name: Now facts are available
+      debug:
+        msg: "Hostname (manual): {{ ansible_hostname }}"

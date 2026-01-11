@@ -1,0 +1,49 @@
+---
+# Sansible Examples - Role Demo Playbook
+#
+# Demonstrates using roles with Sansible.
+#
+# Usage:
+#   sansible-playbook -i examples/inventory.ini examples/role_demo_playbook.yml -l local
+
+- name: Demo Role Usage
+  hosts: local
+  gather_facts: false
+  
+  vars:
+    environment_name: production
+    deploy_version: "2.0.0"
+    
+  pre_tasks:
+    - name: Pre-deployment check
+      debug:
+        msg: "Starting deployment to {{ environment_name }}"
+    
+    - name: Validate environment
+      assert:
+        that:
+          - environment_name in ['development', 'staging', 'production']
+          - deploy_version is defined
+        fail_msg: "Invalid environment or missing version"
+        success_msg: "Environment validation passed"
+  
+  roles:
+    - role: demo_role
+      demo_message: "Hello from role with version {{ deploy_version }}"
+      demo_create_file: true
+  
+  tasks:
+    - name: Post-role task
+      debug:
+        msg: "Role execution complete"
+  
+  post_tasks:
+    - name: Deployment summary
+      debug:
+        msg: "Successfully deployed version {{ deploy_version }} to {{ environment_name }}"
+    
+    - name: Cleanup temporary files
+      file:
+        path: /tmp/demo-role-test
+        state: absent
+      ignore_errors: true

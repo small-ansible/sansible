@@ -1,0 +1,99 @@
+---
+# Sansible Examples - Block, Rescue, Always
+#
+# Demonstrates: block, rescue, always for error handling
+#
+# Run with:
+#   san run -i examples/inventory.ini examples/playbooks/05_blocks.yml -l localhost
+
+- name: Block/Rescue/Always Examples
+  hosts: localhost
+  gather_facts: false
+
+  vars:
+    work_dir: /tmp/neo_block_examples
+
+  tasks:
+    - name: Setup
+      file:
+        path: "{{ work_dir }}"
+        state: directory
+
+    # --- Basic block with rescue ---
+    - name: Block with error handling
+      block:
+        - name: Try to read a file that might not exist
+          command: cat /nonexistent/file
+          register: file_content
+
+        - name: This won't run if above fails
+          debug:
+            msg: "File content: {{ file_content.stdout }}"
+
+      rescue:
+        - name: Handle the error
+          debug:
+            msg: ">>> RESCUE: File not found, using default"
+
+        - name: Create fallback
+          copy:
+            content: "default_value=true"
+            dest: "{{ work_dir }}/fallback.conf"
+
+      always:
+        - name: This always runs
+          debug:
+            msg: ">>> ALWAYS: Cleanup/logging regardless of success"
+
+    # --- Successful block (rescue won't run) ---
+    - name: Block that succeeds
+      block:
+        - name: Run successful command
+          command: echo "success"
+          register: result
+
+        - name: Show result
+          debug:
+            msg: "Command succeeded: {{ result.stdout }}"
+
+      rescue:
+        - name: This won't run
+          debug:
+            msg: ">>> RESCUE: This should not appear"
+
+      always:
+        - name: Always runs after success too
+          debug:
+            msg: ">>> ALWAYS: Block completed successfully"
+
+    # --- Nested blocks ---
+    - name: Outer block
+      block:
+        - name: Outer block task 1
+          debug:
+            msg: "Outer block - task 1"
+
+        - name: Inner block
+          block:
+            - name: Inner task that fails
+              command: /bin/false
+
+          rescue:
+            - name: Handle inner failure
+              debug:
+                msg: ">>> RESCUE: Inner block caught the error"
+
+        - name: Outer block task 2 (still runs)
+          debug:
+            msg: "Outer block - task 2 (inner was rescued)"
+
+      always:
+        - name: Outer always
+          debug:
+            msg: ">>> ALWAYS: Outer block complete"
+
+    # --- Cleanup ---
+    - name: Cleanup
+      file:
+        path: "{{ work_dir }}"
+        state: absent

@@ -1,0 +1,54 @@
+---
+# Windows Smoke Test Playbook
+# Tests basic functionality on Windows hosts via WinRM
+
+- name: Windows Smoke Test
+  hosts: windows
+  gather_facts: false
+  
+  vars:
+    test_file: C:\Temp\neo_test.txt
+    test_content: "Hello from Sansible!"
+  
+  tasks:
+    - name: Ensure Temp directory exists
+      win_shell: |
+        if (-not (Test-Path C:\Temp)) {
+          New-Item -ItemType Directory -Path C:\Temp
+        }
+    
+    - name: Create test file with content
+      win_copy:
+        dest: "{{ test_file }}"
+        content: "{{ test_content }}"
+    
+    - name: Verify file exists
+      win_shell: Get-Content "{{ test_file }}"
+      register: cat_result
+    
+    - name: Assert content matches
+      assert:
+        that:
+          - test_content in cat_result.stdout
+        fail_msg: "Content mismatch"
+    
+    - name: Run a simple command
+      win_command: echo Test passed
+      register: echo_result
+    
+    - name: Debug output
+      debug:
+        var: echo_result.stdout
+    
+    - name: Clean up test file
+      win_shell: Remove-Item "{{ test_file }}" -Force -ErrorAction SilentlyContinue
+    
+    - name: Test PowerShell features
+      win_shell: |
+        $items = @("one", "two", "three")
+        $items | ForEach-Object { Write-Output "Item: $_" }
+      register: ps_result
+    
+    - name: Debug PowerShell output
+      debug:
+        var: ps_result.stdout_lines

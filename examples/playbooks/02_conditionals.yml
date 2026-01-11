@@ -1,0 +1,90 @@
+---
+# Sansible Examples - Conditionals and Loops
+#
+# Demonstrates: when, loop, with_items, register, changed_when, failed_when
+#
+# Run with:
+#   san run -i examples/inventory.ini examples/playbooks/02_conditionals.yml -l localhost
+
+- name: Conditionals and Loops Examples
+  hosts: localhost
+  gather_facts: false
+
+  vars:
+    enable_feature: true
+    environment: "development"
+    packages:
+      - nginx
+      - redis
+      - postgresql
+
+  tasks:
+    # --- When Conditional ---
+    - name: Run only when feature is enabled
+      debug:
+        msg: "Feature is enabled!"
+      when: enable_feature
+
+    - name: Skip when not production
+      debug:
+        msg: "This only runs in production"
+      when: environment == "production"
+
+    - name: Run in development
+      debug:
+        msg: "Running in {{ environment }} mode"
+      when: environment == "development"
+
+    # --- Variable Defined Check ---
+    - name: Check if variable is defined
+      debug:
+        msg: "environment is: {{ environment }}"
+      when: environment is defined
+
+    - name: Skip if variable undefined
+      debug:
+        msg: "This should not appear"
+      when: undefined_var is defined
+
+    # --- Loop with list ---
+    - name: Loop through packages
+      debug:
+        msg: "Would install: {{ item }}"
+      loop: "{{ packages }}"
+
+    # --- Loop with index ---
+    - name: Loop with index
+      debug:
+        msg: "Package {{ ansible_loop.index }}: {{ item }}"
+      loop: "{{ packages }}"
+
+    # --- Register and conditional ---
+    - name: Check for a file
+      command: test -f /etc/hosts
+      register: hosts_check
+      ignore_errors: true
+
+    - name: Report file status
+      debug:
+        msg: "/etc/hosts exists"
+      when: hosts_check.rc == 0
+
+    # --- changed_when override ---
+    - name: Command that is never 'changed'
+      command: echo "Status check"
+      register: status
+      changed_when: false
+
+    - name: Verify no change was recorded
+      debug:
+        msg: "Changed: {{ status.changed }}"
+
+    # --- failed_when override ---
+    - name: Command with custom failure condition
+      shell: echo "value=42" | grep -o '[0-9]*'
+      register: number
+      failed_when: number.stdout | int > 100
+
+    - name: Show extracted number
+      debug:
+        msg: "Extracted: {{ number.stdout }}"

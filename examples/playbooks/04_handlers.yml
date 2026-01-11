@@ -1,0 +1,76 @@
+---
+# Sansible Examples - Handlers and Notify
+#
+# Demonstrates: handlers, notify, listen
+#
+# Run with:
+#   san run -i examples/inventory.ini examples/playbooks/04_handlers.yml -l localhost
+
+- name: Handlers and Notify Examples
+  hosts: localhost
+  gather_facts: false
+
+  vars:
+    config_dir: /tmp/neo_handler_examples
+
+  handlers:
+    # Named handler triggered by notify
+    - name: Restart application
+      debug:
+        msg: ">>> HANDLER: Restarting application..."
+
+    # Handler with listen (multiple triggers)
+    - name: Log config change
+      debug:
+        msg: ">>> HANDLER: Configuration was changed, logging..."
+      listen: "config changed"
+
+    - name: Validate config
+      debug:
+        msg: ">>> HANDLER: Validating new configuration..."
+      listen: "config changed"
+
+    # Chained handler
+    - name: Send notification
+      debug:
+        msg: ">>> HANDLER: Sending notification email..."
+
+  tasks:
+    - name: Setup directory
+      file:
+        path: "{{ config_dir }}"
+        state: directory
+
+    # --- Notify single handler ---
+    - name: Create main config
+      copy:
+        content: "main_config=value1"
+        dest: "{{ config_dir }}/main.conf"
+      notify: Restart application
+
+    # --- Notify with listen ---
+    - name: Update database config
+      copy:
+        content: "db_host=localhost"
+        dest: "{{ config_dir }}/database.conf"
+      notify: "config changed"
+
+    # --- Multiple notifies ---
+    - name: Update network config
+      copy:
+        content: "bind=0.0.0.0"
+        dest: "{{ config_dir }}/network.conf"
+      notify:
+        - Restart application
+        - Send notification
+
+    # --- Task that doesn't trigger handlers (no change) ---
+    - name: Task with no changes
+      debug:
+        msg: "This task doesn't notify anything"
+
+    # --- Cleanup ---
+    - name: Cleanup example files
+      file:
+        path: "{{ config_dir }}"
+        state: absent

@@ -1,0 +1,66 @@
+---
+# Sansible Examples - Privilege Escalation (become)
+#
+# Demonstrates: become, become_user, become_method
+#
+# NOTE: This playbook requires sudo access. Run on a system where you have sudo.
+#
+# Run with:
+#   san run -i examples/inventory.ini examples/playbooks/06_become.yml -l localhost
+
+- name: Privilege Escalation Examples
+  hosts: localhost
+  gather_facts: false
+
+  # Play-level become (applies to all tasks by default)
+  become: false
+
+  vars:
+    protected_dir: /opt/neo_example
+    
+  tasks:
+    # --- Task-level become ---
+    - name: Create protected directory (requires root)
+      file:
+        path: "{{ protected_dir }}"
+        state: directory
+        mode: "0755"
+      become: true
+      # become_method: sudo  # default
+      # become_user: root    # default
+
+    - name: Check who we are (no become)
+      command: whoami
+      register: normal_user
+
+    - name: Show normal user
+      debug:
+        msg: "Running as: {{ normal_user.stdout }}"
+
+    - name: Check who we are with become
+      command: whoami
+      become: true
+      register: root_user
+
+    - name: Show elevated user
+      debug:
+        msg: "With become: {{ root_user.stdout }}"
+
+    # --- Become to specific user ---
+    # Uncomment if you have the 'nobody' user available
+    # - name: Run as 'nobody' user
+    #   command: id
+    #   become: true
+    #   become_user: nobody
+    #   register: nobody_id
+    #
+    # - name: Show nobody id
+    #   debug:
+    #     var: nobody_id.stdout
+
+    # --- Cleanup ---
+    - name: Remove protected directory
+      file:
+        path: "{{ protected_dir }}"
+        state: absent
+      become: true

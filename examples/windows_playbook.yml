@@ -1,0 +1,104 @@
+---
+# Sansible Examples - Windows Playbook
+#
+# Demonstrates common tasks for Windows hosts using WinRM.
+#
+# Usage:
+#   sansible-playbook -i examples/inventory.ini examples/windows_playbook.yml -l windows
+
+- name: Windows Host Configuration
+  hosts: windows
+  gather_facts: false
+  
+  vars:
+    app_name: MyApp
+    app_version: "1.0.0"
+    base_dir: C:\Apps
+    log_dir: C:\Logs
+    
+  tasks:
+    - name: Print deployment info
+      debug:
+        msg: "Deploying {{ app_name }} version {{ app_version }} to Windows"
+    
+    - name: Create application directory
+      win_file:
+        path: "{{ base_dir }}\\{{ app_name }}"
+        state: directory
+    
+    - name: Create log directory
+      win_file:
+        path: "{{ log_dir }}\\{{ app_name }}"
+        state: directory
+    
+    - name: Copy configuration file
+      win_copy:
+        content: |
+          # {{ app_name }} Configuration
+          version={{ app_version }}
+          log_level=info
+          log_path={{ log_dir }}\{{ app_name }}
+        dest: "{{ base_dir }}\\{{ app_name }}\\config.ini"
+    
+    - name: Get system information
+      win_shell: |
+        $info = @{
+            Hostname = $env:COMPUTERNAME
+            OS = (Get-CimInstance Win32_OperatingSystem).Caption
+            Version = (Get-CimInstance Win32_OperatingSystem).Version
+            Memory = [math]::Round((Get-CimInstance Win32_OperatingSystem).TotalVisibleMemorySize / 1MB, 2)
+        }
+        $info | ConvertTo-Json
+      register: system_info
+    
+    - name: Display system info
+      debug:
+        msg: "{{ system_info.stdout }}"
+    
+    - name: Check if application directory exists
+      win_command: dir "{{ base_dir }}\{{ app_name }}"
+      register: dir_check
+      ignore_errors: true
+    
+    - name: Show directory listing
+      debug:
+        var: dir_check.stdout
+      when: dir_check.rc == 0
+    
+    - name: Run PowerShell command
+      win_shell: |
+        Write-Output "PowerShell version: $($PSVersionTable.PSVersion)"
+        Write-Output "Execution Policy: $(Get-ExecutionPolicy)"
+        Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+      register: ps_output
+    
+    - name: Display PowerShell output
+      debug:
+        msg: "{{ ps_output.stdout_lines }}"
+
+- name: Windows Service Example
+  hosts: windows
+  gather_facts: false
+  
+  vars:
+    service_name: Spooler
+    
+  tasks:
+    - name: Get service status
+      win_shell: |
+        $svc = Get-Service -Name "{{ service_name }}" -ErrorAction SilentlyContinue
+        if ($svc) {
+            @{
+                Name = $svc.Name
+                DisplayName = $svc.DisplayName
+                Status = $svc.Status.ToString()
+                StartType = $svc.StartType.ToString()
+            } | ConvertTo-Json
+        } else {
+            @{Error = "Service not found"} | ConvertTo-Json
+        }
+      register: service_status
+    
+    - name: Display service status
+      debug:
+        msg: "{{ service_status.stdout }}"

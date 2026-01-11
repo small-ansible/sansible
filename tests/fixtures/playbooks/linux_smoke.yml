@@ -1,0 +1,64 @@
+---
+# Linux Smoke Test Playbook
+# Tests basic functionality on Linux hosts via localhost
+
+- name: Linux Smoke Test
+  hosts: local
+  gather_facts: false
+  
+  vars:
+    test_file: /tmp/neo_test.txt
+    test_content: "Hello from Sansible!"
+  
+  tasks:
+    - name: Create test file with content
+      copy:
+        dest: "{{ test_file }}"
+        content: "{{ test_content }}"
+    
+    - name: Verify file exists
+      shell: cat "{{ test_file }}"
+      register: cat_result
+    
+    - name: Assert content matches
+      assert:
+        that:
+          - cat_result.stdout == test_content
+        fail_msg: "Content mismatch: expected '{{ test_content }}', got '{{ cat_result.stdout }}'"
+    
+    - name: Run a simple command
+      command: echo "Test passed"
+      register: echo_result
+    
+    - name: Debug output
+      debug:
+        var: echo_result.stdout
+    
+    - name: Clean up test file
+      shell: rm -f "{{ test_file }}"
+    
+    - name: Test loop functionality
+      debug:
+        msg: "Item: {{ item }}"
+      loop:
+        - one
+        - two
+        - three
+    
+    - name: Test conditional execution
+      debug:
+        msg: "This should run"
+      when: true
+    
+    - name: Test skipped task
+      debug:
+        msg: "This should be skipped"
+      when: false
+    
+    - name: Set a fact
+      set_fact:
+        my_fact: "Sansible is working!"
+    
+    - name: Use the fact
+      debug:
+        msg: "Fact value: {{ my_fact }}"

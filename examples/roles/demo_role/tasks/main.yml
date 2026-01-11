@@ -1,0 +1,42 @@
+---
+# Demo Role Tasks
+#
+# This role demonstrates basic role structure for Sansible.
+
+- name: Display demo message
+  debug:
+    msg: "{{ demo_message | default('Default demo message') }}"
+
+- name: Set role facts
+  set_fact:
+    role_executed: true
+    role_timestamp: "{{ ansible_date_time | default('unknown') }}"
+
+- name: Create demo directory
+  file:
+    path: /tmp/demo-role-test
+    state: directory
+  when: demo_create_file | default(false)
+
+- name: Create demo file
+  copy:
+    content: |
+      # Demo Role Output
+      Message: {{ demo_message | default('No message') }}
+      Created by: demo_role
+    dest: /tmp/demo-role-test/info.txt
+  when: demo_create_file | default(false)
+
+- name: Verify demo file
+  command: cat /tmp/demo-role-test/info.txt
+  register: demo_file_content
+  when: demo_create_file | default(false)
+
+- name: Show demo file content
+  debug:
+    var: demo_file_content.stdout
+  when: demo_create_file | default(false) and demo_file_content is defined
+
+- name: Role completion message
+  debug:
+    msg: "Demo role completed successfully"

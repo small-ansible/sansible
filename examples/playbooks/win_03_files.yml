@@ -1,0 +1,111 @@
+---
+# Sansible Examples - Windows File Operations
+#
+# Demonstrates: win_stat, win_lineinfile, win_wait_for
+#
+# Run with:
+#   san run -i examples/inventory.ini examples/playbooks/win_03_files.yml -l windows
+
+- name: Windows File Operations Examples
+  hosts: windows
+  gather_facts: false
+
+  vars:
+    work_dir: C:\Temp\NeoExamples
+    config_file: "{{ work_dir }}\\app.config"
+
+  tasks:
+    # --- Setup ---
+    - name: Create working directory
+      win_file:
+        path: "{{ work_dir }}"
+        state: directory
+
+    # --- Win Stat ---
+    - name: Check if directory exists
+      win_stat:
+        path: "{{ work_dir }}"
+      register: dir_stat
+
+    - name: Show directory info
+      debug:
+        msg: "Directory exists: {{ dir_stat.stat.exists }}, isdir: {{ dir_stat.stat.isdir }}"
+
+    # --- Create config file ---
+    - name: Create initial config
+      win_copy:
+        content: |
+          # Application Config
+          [Database]
+          Server=localhost
+          Port=5432
+          
+          [Logging]
+          Level=Info
+        dest: "{{ config_file }}"
+
+    # --- Win Lineinfile ---
+    - name: Update database server
+      win_lineinfile:
+        path: "{{ config_file }}"
+        regexp: "^Server="
+        line: "Server=db.example.com"
+
+    - name: Add new setting
+      win_lineinfile:
+        path: "{{ config_file }}"
+        line: "ConnectionTimeout=30"
+        insertafter: "^Port="
+
+    - name: Remove a line
+      win_lineinfile:
+        path: "{{ config_file }}"
+        regexp: "^Level=Info"
+        state: absent
+
+    - name: Add debug level
+      win_lineinfile:
+        path: "{{ config_file }}"
+        line: "Level=Debug"
+        insertafter: "\\[Logging\\]"
+
+    # --- Show updated config ---
+    - name: Read config file
+      win_command: type "{{ config_file }}"
+      register: config_content
+
+    - name: Show config
+      debug:
+        var: config_content.stdout
+
+    # --- Win Stat on file ---
+    - name: Get file info
+      win_stat:
+        path: "{{ config_file }}"
+      register: file_stat
+
+    - name: Show file info
+      debug:
+        msg: "Size: {{ file_stat.stat.size }} bytes"
+
+    # --- Win Wait For (file) ---
+    - name: Create flag file
+      win_copy:
+        content: "ready"
+        dest: "{{ work_dir }}\\ready.flag"
+
+    - name: Wait for flag file
+      win_wait_for:
+        path: "{{ work_dir }}\\ready.flag"
+        state: present
+        timeout: 5
+
+    - name: Flag file exists
+      debug:
+        msg: "Ready flag file detected!"
+
+    # --- Cleanup ---
+    - name: Remove working directory
+      win_file:
+        path: "{{ work_dir }}"
+        state: absent

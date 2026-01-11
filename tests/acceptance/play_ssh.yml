@@ -1,0 +1,48 @@
+---
+# Sansible Acceptance Test: SSH Transport
+# Tests Windows controller -> Linux target over SSH
+
+- name: Test SSH transport
+  hosts: linux
+  gather_facts: false
+  
+  tasks:
+    - name: Ping test
+      ping:
+    
+    - name: Run command on remote host
+      command: uname -a
+      register: uname_result
+    
+    - name: Display system info
+      debug:
+        msg: "Remote system: {{ uname_result.stdout }}"
+    
+    - name: Get hostname
+      command: hostname
+      register: hostname_result
+    
+    - name: Copy file to remote
+      copy:
+        content: "Copied by sansible"
+        dest: /tmp/sansible_ssh_test.txt
+        mode: '0644'
+    
+    - name: Read file back
+      command: cat /tmp/sansible_ssh_test.txt
+      register: file_content
+    
+    - name: Verify file content
+      assert:
+        that:
+          - "'sansible' in file_content.stdout"
+        fail_msg: "File content verification failed"
+    
+    - name: Clean up test file
+      file:
+        path: /tmp/sansible_ssh_test.txt
+        state: absent
+    
+    - name: SSH transport success
+      debug:
+        msg: "SSH transport tests passed for {{ hostname_result.stdout }}!"

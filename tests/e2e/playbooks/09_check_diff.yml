@@ -1,0 +1,145 @@
+# Sansible E2E Test Playbook 09: Check and Diff Mode
+# Tests --check (dry-run) and --diff (show changes)
+---
+- name: Check Mode Test - Linux
+  hosts: linux
+  gather_facts: false
+  vars:
+    test_file: /tmp/sansible_check_test.txt
+    test_dir: /tmp/sansible_check_dir
+  tasks:
+    - name: Would create file (check mode)
+      copy:
+        dest: "{{ test_file }}"
+        content: "This file should NOT exist after check mode"
+      check_mode: true
+      register: check_result
+
+    - name: Show check mode result
+      debug:
+        msg: "Check mode - would change: {{ check_result.changed }}"
+
+    - name: Verify file was NOT created (check mode)
+      stat:
+        path: "{{ test_file }}"
+      register: stat_result
+
+    - name: Assert file does not exist
+      assert:
+        that:
+          - stat_result.stat.exists == false
+        success_msg: "Check mode correctly did NOT create file"
+
+    - name: Would create directory (check mode)
+      file:
+        path: "{{ test_dir }}"
+        state: directory
+      check_mode: true
+
+    - name: Verify directory was NOT created
+      stat:
+        path: "{{ test_dir }}"
+      register: dir_stat
+
+    - name: Assert directory does not exist
+      assert:
+        that:
+          - dir_stat.stat.exists == false
+        success_msg: "Check mode correctly did NOT create directory"
+
+- name: Diff Mode Test - Linux
+  hosts: linux
+  gather_facts: false
+  vars:
+    test_file: /tmp/sansible_diff_test.txt
+  tasks:
+    - name: Create initial file for diff test
+      copy:
+        dest: "{{ test_file }}"
+        content: |
+          Line 1: Original
+          Line 2: Original
+          Line 3: Original
+
+    - name: Modify file (diff mode will show changes)
+      copy:
+        dest: "{{ test_file }}"
+        content: |
+          Line 1: Original
+          Line 2: MODIFIED
+          Line 3: Original
+      diff: true
+      register: diff_result
+
+    - name: Show diff result
+      debug:
+        var: diff_result
+
+    - name: Cleanup diff test file
+      file:
+        path: "{{ test_file }}"
+        state: absent
+
+- name: Check Mode with Lineinfile - Linux
+  hosts: linux
+  gather_facts: false
+  vars:
+    test_file: /tmp/sansible_lineinfile_check.txt
+  tasks:
+    - name: Create file for lineinfile test
+      copy:
+        dest: "{{ test_file }}"
+        content: |
+          config_value=old
+          another_value=keep
+
+    - name: Would modify line (check mode)
+      lineinfile:
+        path: "{{ test_file }}"
+        regexp: "^config_value="
+        line: "config_value=new"
+      check_mode: true
+      register: line_check
+
+    - name: Verify line was NOT changed
+      command: grep "config_value=old" {{ test_file }}
+      register: grep_result
+
+    - name: Assert original line still exists
+      assert:
+        that:
+          - grep_result.rc == 0
+        success_msg: "Check mode did NOT modify lineinfile"
+
+    - name: Cleanup
+      file:
+        path: "{{ test_file }}"
+        state: absent
+
+- name: Check Mode - Windows
+  hosts: windows
+  gather_facts: false
+  vars:
+    test_file: C:\temp\sansible_check_test.txt
+  tasks:
+    - name: Would create Windows file (check mode)
+      win_copy:
+        dest: "{{ test_file }}"
+        content: "This file should NOT exist"
+      check_mode: true
+      register: win_check_result
+
+    - name: Show Windows check mode result
+      debug:
+        msg: "Windows check mode - would change: {{ win_check_result.changed }}"
+
+    - name: Verify Windows file was NOT created
+      win_stat:
+        path: "{{ test_file }}"
+      register: win_stat_result
+
+    - name: Assert Windows file does not exist
+      assert:
+        that:
+          - win_stat_result.stat.exists == false
+        success_msg: "Windows check mode correctly did NOT create file"

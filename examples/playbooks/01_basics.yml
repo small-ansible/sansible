@@ -1,0 +1,77 @@
+---
+# Sansible Examples - Basic Tasks
+#
+# Demonstrates: debug, set_fact, command, shell, copy
+#
+# Run with:
+#   san run -i examples/inventory.ini examples/playbooks/01_basics.yml -l localhost
+
+- name: Basic Task Examples
+  hosts: localhost
+  gather_facts: false
+
+  vars:
+    greeting: "Hello from Sansible!"
+    version: "1.0.0"
+
+  tasks:
+    # --- Debug Module ---
+    - name: Print a simple message
+      debug:
+        msg: "{{ greeting }}"
+
+    - name: Debug with variable
+      debug:
+        var: version
+
+    # --- Set Fact ---
+    - name: Set a runtime fact
+      set_fact:
+        runtime_var: "Created at runtime"
+        combined: "{{ greeting }} v{{ version }}"
+
+    - name: Use the runtime fact
+      debug:
+        msg: "{{ combined }}"
+
+    # --- Command Module ---
+    - name: Run a simple command
+      command: echo "Command module works!"
+      register: cmd_result
+
+    - name: Show command output
+      debug:
+        var: cmd_result.stdout
+
+    # --- Shell Module ---
+    - name: Run shell with pipes
+      shell: echo "hello world" | tr 'a-z' 'A-Z'
+      register: shell_result
+
+    - name: Show shell output
+      debug:
+        msg: "Uppercase: {{ shell_result.stdout }}"
+
+    # --- Copy Module ---
+    - name: Create a file with content
+      copy:
+        content: |
+          # Configuration file
+          name={{ version }}
+          greeting={{ greeting }}
+        dest: /tmp/neo_example.conf
+        mode: "0644"
+
+    - name: Verify file was created
+      command: cat /tmp/neo_example.conf
+      register: file_content
+
+    - name: Show file content
+      debug:
+        var: file_content.stdout
+
+    # --- Cleanup ---
+    - name: Remove test file
+      file:
+        path: /tmp/neo_example.conf
+        state: absent

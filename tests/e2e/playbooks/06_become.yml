@@ -1,0 +1,102 @@
+# Sansible E2E Test Playbook 06: Become (Privilege Escalation)
+# Tests become, become_user, become_method
+---
+- name: Become - Linux
+  hosts: linux
+  gather_facts: false
+  become: false
+  tasks:
+    - name: Check current user (no become)
+      command: whoami
+      register: normal_user
+
+    - name: Show normal user
+      debug:
+        msg: "Normal user: {{ normal_user.stdout | trim }}"
+
+    - name: Switch to root with become
+      command: whoami
+      become: true
+      register: root_user
+
+    - name: Show root user
+      debug:
+        msg: "Become user: {{ root_user.stdout | trim }}"
+
+    - name: Verify become worked
+      assert:
+        that:
+          - root_user.stdout | trim == "root"
+        success_msg: "Become to root worked"
+
+    - name: Create file as root
+      become: true
+      file:
+        path: /tmp/sansible_become_test.txt
+        state: touch
+        mode: "0644"
+
+    - name: Verify file ownership
+      become: true
+      stat:
+        path: /tmp/sansible_become_test.txt
+      register: file_stat
+
+    - name: Cleanup test file
+      become: true
+      file:
+        path: /tmp/sansible_become_test.txt
+        state: absent
+
+- name: Become with specific user - Linux
+  hosts: linux
+  gather_facts: false
+  become: true
+  become_user: root
+  tasks:
+    - name: Entire play runs as root
+      command: id -un
+      register: play_user
+
+    - name: Verify play-level become
+      assert:
+        that:
+          - play_user.stdout | trim == "root"
+
+- name: Become method test - Linux
+  hosts: linux
+  gather_facts: false
+  tasks:
+    - name: Become with sudo method
+      command: whoami
+      become: true
+      become_method: sudo
+      register: sudo_result
+
+    - name: Show sudo result
+      debug:
+        msg: "Sudo become: {{ sudo_result.stdout | trim }}"
+
+# Note: Windows doesn't use become in the same way
+# WinRM connections typically run as the specified ansible_user
+- name: Windows Admin Verification
+  hosts: windows
+  gather_facts: false
+  tasks:
+    - name: Check current Windows user
+      win_command: whoami
+      register: win_user
+
+    - name: Show Windows user
+      debug:
+        msg: "Windows user: {{ win_user.stdout | trim }}"
+
+    - name: Verify admin access
+      win_command: |
+        $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+        Write-Host $isAdmin
+      register: admin_check
+
+    - name: Show admin status
+      debug:
+        msg: "Running as admin: {{ admin_check.stdout | trim }}"

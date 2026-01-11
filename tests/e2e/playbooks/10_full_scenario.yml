@@ -1,0 +1,252 @@
+# Sansible E2E Test Playbook 10: Full Scenario
+# Complete deployment simulation using all features
+---
+- name: "Full Scenario: Application Deployment"
+  hosts: linux
+  gather_facts: true
+  become: true
+  vars:
+    app_name: neo_demo_app
+    app_dir: /opt/{{ app_name }}
+    app_config: "{{ app_dir }}/config.ini"
+    app_version: "1.0.0"
+  handlers:
+    - name: restart application
+      debug:
+        msg: "Handler: Would restart {{ app_name }}"
+      listen: app config changed
+
+    - name: reload config
+      debug:
+        msg: "Handler: Would reload config"
+      listen: app config changed
+
+  tasks:
+    # =========================================================================
+    # Phase 1: Pre-checks
+    # =========================================================================
+    - name: "Phase 1: Pre-deployment checks"
+      block:
+        - name: Show deployment info
+          debug:
+            msg: |
+              Deploying {{ app_name }} v{{ app_version }}
+              Target: {{ inventory_hostname }}
+              OS: {{ ansible_os_family }} - {{ ansible_distribution | default('Unknown') }}
+
+        - name: Verify we have root access
+          command: id -u
+          register: uid_result
+          changed_when: false
+
+        - name: Assert running as root
+          assert:
+            that:
+              - uid_result.stdout | trim == "0"
+            success_msg: "Running with root privileges"
+
+    # =========================================================================
+    # Phase 2: Setup
+    # =========================================================================
+    - name: "Phase 2: Create application structure"
+      block:
+        - name: Create application directory
+          file:
+            path: "{{ app_dir }}"
+            state: directory
+            mode: "0755"
+          register: dir_created
+
+        - name: Create subdirectories
+          file:
+            path: "{{ app_dir }}/{{ item }}"
+            state: directory
+            mode: "0755"
+          loop:
+            - bin
+            - config
+            - logs
+            - data
+
+        - name: Create application config
+          copy:
+            dest: "{{ app_config }}"
+            content: |
+              [application]
+              name={{ app_name }}
+              version={{ app_version }}
+              host={{ inventory_hostname }}
+
+              [logging]
+              level=INFO
+              path={{ app_dir }}/logs/app.log
+
+              [database]
+              host=localhost
+              port=5432
+          notify: app config changed
+
+        - name: Create placeholder script
+          copy:
+            dest: "{{ app_dir }}/bin/start.sh"
+            content: |
+              #!/bin/bash
+              echo "Starting {{ app_name }} v{{ app_version }}"
+            mode: "0755"
+
+      rescue:
+        - name: Rescue - Log setup failure
+          debug:
+            msg: "ERROR: Failed to setup application directory"
+
+        - name: Rescue - Attempt cleanup
+          file:
+            path: "{{ app_dir }}"
+            state: absent
+          ignore_errors: true
+
+        - name: Rescue - Fail the play
+          fail:
+            msg: "Application setup failed"
+
+      always:
+        - name: Always - Log setup phase complete
+          debug:
+            msg: "Setup phase completed (success or handled failure)"
+
+    # =========================================================================
+    # Phase 3: Verification
+    # =========================================================================
+    - name: "Phase 3: Verify deployment"
+      block:
+        - name: Check application directory
+          stat:
+            path: "{{ app_dir }}"
+          register: app_stat
+
+        - name: Verify directory exists
+          assert:
+            that:
+              - app_stat.stat.exists
+              - app_stat.stat.isdir
+            success_msg: "Application directory verified"
+
+        - name: Check config file
+          stat:
+            path: "{{ app_config }}"
+          register: config_stat
+
+        - name: Verify config exists
+          assert:
+            that:
+              - config_stat.stat.exists
+            success_msg: "Config file verified"
+
+        - name: Check config content
+          command: grep "version={{ app_version }}" {{ app_config }}
+          changed_when: false
+          register: version_check
+
+        - name: Verify version in config
+          assert:
+            that:
+              - version_check.rc == 0
+            success_msg: "Version {{ app_version }} confirmed in config"
+
+    # =========================================================================
+    # Phase 4: Conditional updates
+    # =========================================================================
+    - name: Update config if needed
+      lineinfile:
+        path: "{{ app_config }}"
+        regexp: "^level="
+        line: "level=DEBUG"
+      when: app_version is version('1.0.0', '>=')
+      notify: app config changed
+
+    # =========================================================================
+    # Phase 5: Cleanup
+    # =========================================================================
+    - name: "Phase 5: Cleanup test deployment"
+      file:
+        path: "{{ app_dir }}"
+        state: absent
+      register: cleanup_result
+
+    - name: Verify cleanup
+      stat:
+        path: "{{ app_dir }}"
+      register: final_stat
+
+    - name: Assert cleanup succeeded
+      assert:
+        that:
+          - final_stat.stat.exists == false
+        success_msg: "Deployment test cleaned up successfully"
+
+- name: "Full Scenario: Windows Application"
+  hosts: windows
+  gather_facts: true
+  vars:
+    app_name: neo_demo_win
+    app_dir: C:\Apps\{{ app_name }}
+  handlers:
+    - name: restart win app
+      debug:
+        msg: "Would restart Windows application"
+
+  tasks:
+    - name: Show Windows deployment info
+      debug:
+        msg: |
+          Windows deployment: {{ app_name }}
+          Target: {{ inventory_hostname }}
+          OS: {{ ansible_os_family }}
+
+    - name: Create Windows app directory
+      win_file:
+        path: "{{ app_dir }}"
+        state: directory
+
+    - name: Create Windows config
+      win_copy:
+        dest: "{{ app_dir }}\\config.ini"
+        content: |
+          [windows_app]
+          name={{ app_name }}
+          host={{ inventory_hostname }}
+      notify: restart win app
+
+    - name: Verify Windows config
+      win_stat:
+        path: "{{ app_dir }}\\config.ini"
+      register: win_config_stat
+
+    - name: Assert Windows config exists
+      assert:
+        that:
+          - win_config_stat.stat.exists
+        success_msg: "Windows config created"
+
+    - name: Cleanup Windows test
+      win_file:
+        path: "{{ app_dir }}"
+        state: absent
+
+- name: "Full Scenario: Summary"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Deployment summary
+      debug:
+        msg: |
+          ============================================
+          FULL SCENARIO COMPLETE
+          ============================================
+          All phases executed successfully:
+          - Pre-checks passed
+          - Application structure created
+          - Verification confirmed
+          - Cleanup completed
+          ============================================

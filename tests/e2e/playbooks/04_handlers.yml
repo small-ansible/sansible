@@ -1,0 +1,105 @@
+# Sansible E2E Test Playbook 04: Handlers
+# Tests handlers, notify, listen, and flush_handlers
+---
+- name: Handlers - Linux
+  hosts: linux
+  gather_facts: false
+  vars:
+    test_file: /tmp/sansible_handler_test.txt
+  handlers:
+    - name: restart service handler
+      debug:
+        msg: "Handler: Restarting service"
+      listen: restart services
+
+    - name: reload config handler
+      debug:
+        msg: "Handler: Reloading config"
+      listen: restart services
+
+    - name: cleanup handler
+      file:
+        path: "{{ test_file }}"
+        state: absent
+
+    - name: notify chain handler
+      debug:
+        msg: "Handler: Chain notification received"
+
+  tasks:
+    - name: Task that triggers handler
+      copy:
+        dest: "{{ test_file }}"
+        content: "Handler trigger test"
+      notify: cleanup handler
+
+    - name: Task that notifies multiple handlers via listen
+      debug:
+        msg: "Notifying restart services"
+      changed_when: true
+      notify: restart services
+
+    - name: Task without notification
+      debug:
+        msg: "This task does not notify any handler"
+
+    - name: Task that chains notifications
+      debug:
+        msg: "Triggering chain"
+      changed_when: true
+      notify: notify chain handler
+
+    - name: Multiple notifications from one task
+      debug:
+        msg: "Multiple notifications"
+      changed_when: true
+      notify:
+        - restart service handler
+        - reload config handler
+
+- name: Handlers with flush - Linux
+  hosts: linux
+  gather_facts: false
+  handlers:
+    - name: immediate handler
+      debug:
+        msg: "Handler: Running immediately after flush"
+
+  tasks:
+    - name: Trigger handler
+      debug:
+        msg: "Triggering handler that will run after flush"
+      changed_when: true
+      notify: immediate handler
+
+    - name: Flush handlers now
+      meta: flush_handlers
+
+    - name: Task after flush
+      debug:
+        msg: "This runs after handlers were flushed"
+
+- name: Handlers - Windows
+  hosts: windows
+  gather_facts: false
+  handlers:
+    - name: win handler one
+      debug:
+        msg: "Windows Handler 1 executed"
+
+    - name: win handler two
+      debug:
+        msg: "Windows Handler 2 executed"
+
+  tasks:
+    - name: Windows task with handler
+      debug:
+        msg: "Windows triggering handler"
+      changed_when: true
+      notify: win handler one
+
+    - name: Windows task with multiple handlers
+      win_command: echo "trigger"
+      notify:
+        - win handler one
+        - win handler two

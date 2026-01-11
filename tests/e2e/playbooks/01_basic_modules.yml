@@ -1,0 +1,96 @@
+# Sansible E2E Test Playbook 01: Basic Modules
+# Tests core modules: debug, set_fact, command, shell, raw
+---
+- name: Basic Modules - Linux
+  hosts: linux
+  gather_facts: false
+  tasks:
+    - name: Debug message
+      debug:
+        msg: "Testing basic modules on {{ inventory_hostname }}"
+
+    - name: Debug variable
+      debug:
+        var: inventory_hostname
+
+    - name: Set a fact
+      set_fact:
+        my_fact: "Hello from Sansible"
+        my_number: 42
+
+    - name: Use the fact
+      debug:
+        msg: "Fact says: {{ my_fact }}, number is {{ my_number }}"
+
+    - name: Run command
+      command: hostname
+      register: cmd_result
+
+    - name: Show command result
+      debug:
+        msg: "Hostname is: {{ cmd_result.stdout }}"
+
+    - name: Run shell with pipes
+      shell: echo "hello world" | tr 'a-z' 'A-Z'
+      register: shell_result
+
+    - name: Verify shell result
+      assert:
+        that:
+          - shell_result.stdout == "HELLO WORLD"
+        success_msg: "Shell command worked correctly"
+
+    - name: Run raw command
+      raw: uname -a
+      register: raw_result
+
+    - name: Show raw result
+      debug:
+        msg: "Raw output: {{ raw_result.stdout | trim }}"
+
+    - name: Assert with fail
+      assert:
+        that:
+          - my_number == 42
+          - my_fact is defined
+        success_msg: "All assertions passed"
+
+- name: Basic Modules - Windows
+  hosts: windows
+  gather_facts: false
+  tasks:
+    - name: Debug message
+      debug:
+        msg: "Testing basic modules on {{ inventory_hostname }}"
+
+    - name: Set a fact
+      set_fact:
+        win_fact: "Windows Sansible"
+        win_number: 100
+
+    - name: Use the fact
+      debug:
+        msg: "Fact says: {{ win_fact }}, number is {{ win_number }}"
+
+    - name: Run win_command
+      win_command: hostname
+      register: cmd_result
+
+    - name: Show command result
+      debug:
+        msg: "Hostname is: {{ cmd_result.stdout | trim }}"
+
+    - name: Run win_shell with PowerShell
+      win_shell: (Get-Date).ToString("yyyy-MM-dd")
+      register: shell_result
+
+    - name: Show shell result
+      debug:
+        msg: "Date is: {{ shell_result.stdout | trim }}"
+
+    - name: Assert facts are correct
+      assert:
+        that:
+          - win_number == 100
+          - win_fact == "Windows Sansible"
+        success_msg: "All Windows assertions passed"

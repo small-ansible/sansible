@@ -1,0 +1,72 @@
+---
+# Sansible Examples - Check and Diff Mode
+#
+# Demonstrates: --check and --diff command line options
+#
+# Run with:
+#   san run -i examples/inventory.ini examples/playbooks/11_check_diff.yml -l localhost
+#   san run -i examples/inventory.ini examples/playbooks/11_check_diff.yml -l localhost --check
+#   san run -i examples/inventory.ini examples/playbooks/11_check_diff.yml -l localhost --diff
+#   san run -i examples/inventory.ini examples/playbooks/11_check_diff.yml -l localhost --check --diff
+
+- name: Check and Diff Mode Examples
+  hosts: localhost
+  gather_facts: false
+
+  vars:
+    test_dir: /tmp/neo_check_diff_example
+    config_file: "{{ test_dir }}/config.txt"
+
+  tasks:
+    # --- Setup (will be skipped in check mode) ---
+    - name: Create test directory
+      file:
+        path: "{{ test_dir }}"
+        state: directory
+      # In --check mode, this won't actually create the directory
+
+    - name: Create initial config file
+      copy:
+        content: |
+          # Original Configuration
+          setting1=value1
+          setting2=value2
+        dest: "{{ config_file }}"
+      # In --check mode, file won't be created
+      # In --diff mode, shows what would be written
+
+    # --- Modify file (shows diff) ---
+    - name: Update config file
+      copy:
+        content: |
+          # Updated Configuration
+          setting1=new_value1
+          setting2=value2
+          setting3=added
+        dest: "{{ config_file }}"
+      # --diff shows the changes between old and new content
+
+    # --- Lineinfile changes ---
+    - name: Add a new setting
+      lineinfile:
+        path: "{{ config_file }}"
+        line: "debug=true"
+        state: present
+      # --diff shows the line being added
+
+    # --- Command in check mode ---
+    - name: Run a command
+      command: echo "This would run"
+      register: cmd_result
+      # In --check mode, command won't actually run
+
+    - name: Show result
+      debug:
+        msg: "Command result: {{ cmd_result.stdout | default('(check mode - not executed)') }}"
+
+    # --- Cleanup ---
+    - name: Remove test directory
+      file:
+        path: "{{ test_dir }}"
+        state: absent
+      # In --check mode, won't actually remove

@@ -1,0 +1,90 @@
+# Sansible E2E Test Playbook 07: Facts and Setup
+# Tests gather_facts, setup module, and fact-based conditionals
+---
+- name: Facts gathering - Linux (auto)
+  hosts: linux
+  gather_facts: true
+  tasks:
+    - name: Show gathered facts
+      debug:
+        msg: |
+          Hostname: {{ ansible_hostname }}
+          OS Family: {{ ansible_os_family }}
+          Distribution: {{ ansible_distribution | default('N/A') }}
+
+    - name: Conditional based on OS family
+      debug:
+        msg: "This is a Linux/Unix system"
+      when: ansible_os_family in ['Debian', 'RedHat', 'Suse', 'Alpine']
+
+    - name: Use hostname fact
+      assert:
+        that:
+          - ansible_hostname is defined
+          - ansible_hostname | length > 0
+        success_msg: "Hostname fact is valid: {{ ansible_hostname }}"
+
+- name: Manual setup module - Linux
+  hosts: linux
+  gather_facts: false
+  tasks:
+    - name: Manually run setup
+      setup:
+      register: setup_result
+
+    - name: Show setup result keys
+      debug:
+        msg: "Setup gathered: hostname={{ ansible_hostname }}, os_family={{ ansible_os_family }}"
+
+    - name: Verify setup populated facts
+      assert:
+        that:
+          - ansible_hostname is defined
+        success_msg: "Manual setup module worked"
+
+- name: Facts gathering - Windows (auto)
+  hosts: windows
+  gather_facts: true
+  tasks:
+    - name: Show Windows facts
+      debug:
+        msg: |
+          Hostname: {{ ansible_hostname }}
+          OS Family: {{ ansible_os_family }}
+
+    - name: Conditional based on Windows
+      debug:
+        msg: "This is a Windows system"
+      when: ansible_os_family == "Windows"
+
+    - name: Use Windows hostname
+      assert:
+        that:
+          - ansible_hostname is defined
+        success_msg: "Windows hostname: {{ ansible_hostname }}"
+
+- name: No facts gathering (performance)
+  hosts: linux
+  gather_facts: false
+  tasks:
+    - name: Fast play without facts
+      debug:
+        msg: "This play skipped fact gathering for speed"
+
+    - name: Facts should not be available
+      debug:
+        msg: "ansible_hostname is: {{ ansible_hostname | default('NOT GATHERED') }}"
+
+- name: Subset facts - Linux
+  hosts: linux
+  gather_facts: false
+  tasks:
+    - name: Gather only network facts
+      setup:
+        gather_subset:
+          - network
+      register: network_facts
+
+    - name: Show subset was gathered
+      debug:
+        msg: "Gathered network facts subset"

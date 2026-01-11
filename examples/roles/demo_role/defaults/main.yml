@@ -1,0 +1,9 @@
+---
+# Demo Role Defaults
+#
+# Default variables for the demo role. These can be overridden
+# by play variables or role invocation parameters.
+
+demo_message: "Hello from demo_role!"
+demo_create_file: false
+demo_cleanup: true

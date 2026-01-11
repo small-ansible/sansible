@@ -1,0 +1,57 @@
+# Sansible E2E Test Playbook 00: Connectivity Test
+# Verifies all hosts are reachable before running other tests
+---
+- name: Test Linux Connectivity
+  hosts: linux
+  gather_facts: false
+  tasks:
+    - name: Ping Linux hosts
+      command: echo "Hello from {{ inventory_hostname }}"
+      register: ping_result
+
+    - name: Verify ping succeeded
+      assert:
+        that:
+          - ping_result.rc == 0
+        success_msg: "{{ inventory_hostname }} is reachable via SSH"
+        fail_msg: "{{ inventory_hostname }} is NOT reachable"
+
+    - name: Check Python is available
+      command: python3 --version
+      register: python_result
+
+    - name: Show Python version
+      debug:
+        msg: "Python on {{ inventory_hostname }}: {{ python_result.stdout }}"
+
+- name: Test Windows Connectivity
+  hosts: windows
+  gather_facts: false
+  tasks:
+    - name: Ping Windows hosts
+      win_command: Write-Host "Hello from {{ inventory_hostname }}"
+      register: ping_result
+
+    - name: Verify ping succeeded
+      assert:
+        that:
+          - ping_result.rc == 0
+        success_msg: "{{ inventory_hostname }} is reachable via WinRM"
+        fail_msg: "{{ inventory_hostname }} is NOT reachable"
+
+    - name: Check PowerShell version
+      win_command: $PSVersionTable.PSVersion.ToString()
+      register: ps_result
+
+    - name: Show PowerShell version
+      debug:
+        msg: "PowerShell on {{ inventory_hostname }}: {{ ps_result.stdout | trim }}"
+
+- name: Connectivity Summary
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Report success
+      debug:
+        msg: "All hosts are reachable and ready for testing!"

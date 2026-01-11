@@ -1,0 +1,94 @@
+---
+# Sansible Examples - Linux Playbook
+#
+# Demonstrates common tasks for Linux hosts using SSH.
+#
+# Usage:
+#   sansible-playbook -i examples/inventory.ini examples/linux_playbook.yml -l linux
+#   sansible-playbook -i examples/inventory.ini examples/linux_playbook.yml -l localhost
+
+- name: Linux Host Configuration
+  hosts: linux
+  gather_facts: false
+  
+  vars:
+    app_name: myapp
+    app_version: "1.0.0"
+    base_dir: /opt/apps
+    
+  tasks:
+    - name: Print deployment info
+      debug:
+        msg: "Deploying {{ app_name }} version {{ app_version }}"
+    
+    - name: Create application directory
+      file:
+        path: "{{ base_dir }}/{{ app_name }}"
+        state: directory
+        mode: "0755"
+    
+    - name: Copy configuration file
+      copy:
+        content: |
+          # {{ app_name }} Configuration
+          version={{ app_version }}
+          log_level=info
+        dest: "{{ base_dir }}/{{ app_name }}/config.ini"
+        mode: "0644"
+    
+    - name: Check application directory
+      command: ls -la {{ base_dir }}/{{ app_name }}
+      register: dir_listing
+    
+    - name: Show directory contents
+      debug:
+        var: dir_listing.stdout
+    
+    - name: Run system check
+      shell: |
+        echo "Hostname: $(hostname)"
+        echo "Date: $(date)"
+        echo "Uptime: $(uptime)"
+      register: system_info
+    
+    - name: Display system info
+      debug:
+        msg: "{{ system_info.stdout_lines }}"
+
+- name: Local Host Demo
+  hosts: local
+  gather_facts: false
+  
+  tasks:
+    - name: Echo a message locally
+      command: echo "Hello from Sansible on local host"
+      register: hello
+    
+    - name: Show message
+      debug:
+        msg: "{{ hello.stdout }}"
+    
+    - name: Create temp directory
+      file:
+        path: /tmp/sansible-test
+        state: directory
+    
+    - name: Create test file with content
+      copy:
+        content: |
+          This file was created by Sansible
+          Timestamp: {{ lookup_timestamp | default('N/A') }}
+        dest: /tmp/sansible-test/readme.txt
+    
+    - name: Verify file was created
+      shell: cat /tmp/sansible-test/readme.txt
+      register: file_content
+    
+    - name: Show file content
+      debug:
+        var: file_content.stdout
+    
+    - name: Cleanup test directory
+      file:
+        path: /tmp/sansible-test
+        state: absent

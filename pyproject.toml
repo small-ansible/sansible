@@ -1,0 +1,133 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sansible"
+version = "0.2.0"
+description = "Small Ansible - Minimal Ansible-compatible runner for Windows and Linux"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.9"
+authors = [
+    {name = "Sansible Contributors"}
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: System Administrators",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Topic :: System :: Systems Administration",
+    "Topic :: System :: Installation/Setup",
+    "Typing :: Typed",
+]
+keywords = ["ansible", "automation", "configuration-management", "windows", "ssh", "winrm", "devops", "infrastructure", "small-ansible"]
+
+# Core dependencies (always installed)
+dependencies = [
+    "pyyaml>=6.0",
+    "jinja2>=3.0",
+]
+
+[project.optional-dependencies]
+# SSH connections (Linux/Unix targets)
+ssh = [
+    "asyncssh>=2.14.0",
+]
+# WinRM connections (Windows targets)
+winrm = [
+    "pypsrp>=0.8.0",
+]
+# Full installation with all connection types
+all = [
+    "sansible[ssh,winrm]",
+]
+# Development dependencies
+dev = [
+    "pytest>=7.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.0",
+    "ruff>=0.1.0",
+    "mypy>=1.0",
+    "ansible-core>=2.15.0",  # Oracle for golden tests
+    "docker>=6.0.0",  # Integration tests
+]
+
+[project.scripts]
+san = "sansible.san_cli:main"
+sansible = "sansible.san_cli:main"
+sansible-playbook = "sansible.cli.playbook:main"
+sansible-inventory = "sansible.cli.inventory:main"
+sansible-compat-scan = "sansible.compat_scan:main"
+
+[project.urls]
+Homepage = "https://github.com/sansible/sansible"
+Documentation = "https://github.com/sansible/sansible/docs"
+Repository = "https://github.com/sansible/sansible"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"*" = ["py.typed"]
+
+# NOTE: Pure-python wheel is enforced by NOT defining any ext-modules
+# and by running tools/dep_audit.py in CI
+
+[tool.black]
+line-length = 100
+target-version = ['py39', 'py310', 'py311', 'py312']
+
+[tool.mypy]
+python_version = "3.9"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # bugbear
+    "UP",  # pyupgrade
+    "RUF", # ruff-specific
+]
+ignore = [
+    "E501",  # line too long (handled by formatter)
+    "B008",  # function calls in default arguments
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["sansible"]

@@ -1,0 +1,102 @@
+---
+# Sansible Examples - Assert and Fail
+#
+# Demonstrates: assert, fail modules for validation
+#
+# Run with:
+#   san run -i examples/inventory.ini examples/playbooks/09_assert_fail.yml -l localhost
+
+- name: Assert and Fail Examples
+  hosts: localhost
+  gather_facts: false
+
+  vars:
+    api_version: "2.0"
+    min_version: "1.5"
+    environment: "development"
+    required_packages:
+      - nginx
+      - python3
+    actual_packages:
+      - nginx
+      - python3
+      - curl
+
+  tasks:
+    # --- Simple assertion ---
+    - name: Assert environment is valid
+      assert:
+        that:
+          - environment in ["development", "staging", "production"]
+        fail_msg: "Invalid environment: {{ environment }}"
+        success_msg: "Environment '{{ environment }}' is valid"
+
+    # --- Multiple conditions ---
+    - name: Assert version requirements
+      assert:
+        that:
+          - api_version is defined
+          - api_version >= min_version
+        fail_msg: "API version {{ api_version }} is below minimum {{ min_version }}"
+        success_msg: "API version {{ api_version }} meets requirements"
+
+    # --- Assert with registered variable ---
+    - name: Check system command
+      command: which python3
+      register: python_check
+      ignore_errors: true
+
+    - name: Assert python3 is available
+      assert:
+        that:
+          - python_check.rc == 0
+        fail_msg: "Python3 is not installed!"
+        success_msg: "Python3 found at {{ python_check.stdout }}"
+
+    # --- Assert list conditions ---
+    - name: Assert all required packages present
+      assert:
+        that:
+          - item in actual_packages
+        fail_msg: "Missing required package: {{ item }}"
+        success_msg: "Package {{ item }} is available"
+      loop: "{{ required_packages }}"
+
+    # --- Conditional fail ---
+    - name: Check if we should fail
+      set_fact:
+        should_abort: false
+
+    - name: Abort if condition met
+      fail:
+        msg: "Aborting because should_abort is true!"
+      when: should_abort | bool
+
+    - name: This runs because we didn't abort
+      debug:
+        msg: "Continuing execution..."
+
+    # --- Fail with detailed message ---
+    - name: Validate configuration
+      block:
+        - name: Check config
+          set_fact:
+            config_valid: true
+
+        - name: Fail if invalid
+          fail:
+            msg: |
+              Configuration validation failed!
+              Environment: {{ environment }}
+              API Version: {{ api_version }}
+              Please check your settings.
+          when: not config_valid
+
+      rescue:
+        - name: Handle validation failure
+          debug:
+            msg: "Configuration was invalid, using defaults"
+
+    - name: Validation complete
+      debug:
+        msg: "All assertions passed!"

@@ -1,0 +1,91 @@
+---
+# Sansible Examples - File Management
+#
+# Demonstrates: file, copy, template, stat, lineinfile
+#
+# Run with:
+#   san run -i examples/inventory.ini examples/playbooks/03_file_management.yml -l localhost
+
+- name: File Management Examples
+  hosts: localhost
+  gather_facts: false
+
+  vars:
+    app_dir: /tmp/neo_file_examples
+    config_value: "production"
+
+  tasks:
+    # --- Create Directory ---
+    - name: Create application directory
+      file:
+        path: "{{ app_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Create nested directories
+      file:
+        path: "{{ app_dir }}/config/ssl"
+        state: directory
+        mode: "0700"
+
+    # --- Copy with content ---
+    - name: Create config file
+      copy:
+        content: |
+          # Application Configuration
+          environment={{ config_value }}
+          debug=false
+          log_level=info
+        dest: "{{ app_dir }}/config/app.conf"
+        mode: "0644"
+
+    # --- Stat module ---
+    - name: Check file exists
+      stat:
+        path: "{{ app_dir }}/config/app.conf"
+      register: config_stat
+
+    - name: Show file info
+      debug:
+        msg: "File exists: {{ config_stat.stat.exists }}, Size: {{ config_stat.stat.size }} bytes"
+
+    # --- Lineinfile ---
+    - name: Ensure line is present
+      lineinfile:
+        path: "{{ app_dir }}/config/app.conf"
+        line: "new_setting=enabled"
+        state: present
+
+    - name: Update existing line
+      lineinfile:
+        path: "{{ app_dir }}/config/app.conf"
+        regexp: "^debug="
+        line: "debug=true"
+
+    - name: Show updated config
+      command: cat {{ app_dir }}/config/app.conf
+      register: updated_config
+
+    - name: Display config
+      debug:
+        var: updated_config.stdout_lines
+
+    # --- Create symlink ---
+    - name: Create symlink
+      file:
+        src: "{{ app_dir }}/config/app.conf"
+        dest: "{{ app_dir }}/app.conf.link"
+        state: link
+
+    # --- Copy file ---
+    - name: Copy config as backup
+      copy:
+        src: "{{ app_dir }}/config/app.conf"
+        dest: "{{ app_dir }}/config/app.conf.bak"
+        remote_src: true
+
+    # --- Cleanup ---
+    - name: Clean up example files
+      file:
+        path: "{{ app_dir }}"
+        state: absent

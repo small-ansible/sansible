@@ -1,0 +1,59 @@
+# =============================================================================
+# Sansible E2E Test Inventory Template
+# =============================================================================
+# Copy this file to test_inventory.ini and fill in your actual host details.
+# 
+# Requirements:
+# - Linux: SSH access (key or password), Python 3, sudo privileges
+# - Windows: WinRM enabled, PowerShell remoting, admin account
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Linux Hosts (SSH)
+# -----------------------------------------------------------------------------
+[linux]
+linux1  ansible_host=192.168.1.101  ansible_user=testuser  ansible_password=CHANGEME
+linux2  ansible_host=192.168.1.102  ansible_user=testuser  ansible_password=CHANGEME
+linux3  ansible_host=192.168.1.103  ansible_user=testuser  ansible_password=CHANGEME
+
+[linux:vars]
+ansible_connection=ssh
+# Uncomment for key-based auth (recommended):
+# ansible_ssh_private_key_file=~/.ssh/id_rsa
+# ansible_password=  # Leave empty for key auth
+
+# For become (sudo) tests:
+ansible_become_password=CHANGEME
+
+# -----------------------------------------------------------------------------
+# Windows Hosts (WinRM)
+# -----------------------------------------------------------------------------
+[windows]
+win1  ansible_host=192.168.1.201  ansible_user=Administrator  ansible_password=CHANGEME
+win2  ansible_host=192.168.1.202  ansible_user=Administrator  ansible_password=CHANGEME
+win3  ansible_host=192.168.1.203  ansible_user=Administrator  ansible_password=CHANGEME
+
+[windows:vars]
+ansible_connection=winrm
+ansible_winrm_transport=ntlm
+ansible_port=5985
+# For HTTPS (port 5986), uncomment:
+# ansible_port=5986
+# ansible_winrm_server_cert_validation=ignore
+
+# -----------------------------------------------------------------------------
+# Group Aggregations
+# -----------------------------------------------------------------------------
+[all_servers:children]
+linux
+windows
+
+# Subset for quick tests
+[quick_test]
+linux1
+win1
+
+# For parallel execution tests (use all hosts)
+[parallel:children]
+linux
+windows

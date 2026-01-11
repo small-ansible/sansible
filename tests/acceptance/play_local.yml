@@ -1,0 +1,42 @@
+---
+# Sansible Acceptance Test: Local Execution
+# This playbook tests localhost execution on any platform
+
+- name: Test localhost execution
+  hosts: local
+  gather_facts: false
+  
+  tasks:
+    - name: Print hello message
+      command: echo "Hello from sansible!"
+      register: hello_result
+    
+    - name: Display result
+      debug:
+        msg: "{{ hello_result.stdout }}"
+    
+    - name: Get current directory
+      command: pwd
+      register: pwd_result
+      when: ansible_os_family != 'Windows'
+    
+    - name: Get current directory (Windows)
+      command: cd
+      register: pwd_result
+      when: ansible_os_family == 'Windows'
+    
+    - name: Create test file
+      copy:
+        content: "sansible test file"
+        dest: /tmp/sansible_test.txt
+      when: ansible_os_family != 'Windows'
+    
+    - name: Create test file (Windows)
+      copy:
+        content: "sansible test file"
+        dest: "{{ ansible_env.TEMP }}\\sansible_test.txt"
+      when: ansible_os_family == 'Windows'
+    
+    - name: Verify success
+      debug:
+        msg: "All local tests passed!"

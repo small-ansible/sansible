@@ -1,0 +1,27 @@
+# SSH Test Container for Sansible Integration Tests
+FROM alpine:3.19
+
+# Install OpenSSH server
+RUN apk add --no-cache openssh openssh-server bash python3
+
+# Create test user with known password
+RUN adduser -D -s /bin/bash testuser && \
+    echo "testuser:testpass" | chpasswd
+
+# Configure SSH
+RUN ssh-keygen -A && \
+    sed -i 's/#PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config && \
+    sed -i 's/#PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config && \
+    sed -i 's/#PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config && \
+    mkdir -p /run/sshd
+
+# Create test directories
+RUN mkdir -p /home/testuser/.ssh && \
+    chown testuser:testuser /home/testuser/.ssh && \
+    chmod 700 /home/testuser/.ssh
+
+# Expose SSH port
+EXPOSE 22
+
+# Start SSH daemon
+CMD ["/usr/sbin/sshd", "-D", "-e"]

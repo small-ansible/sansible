@@ -1,0 +1,45 @@
+---
+# Mixed Smoke Test Playbook
+# Tests running tasks on both Linux and Windows hosts
+
+- name: Common Setup
+  hosts: all
+  gather_facts: false
+  
+  vars:
+    app_name: "MyApp"
+  
+  tasks:
+    - name: Print host info
+      debug:
+        msg: "Running on {{ inventory_hostname }}"
+    
+    - name: Set deployment time
+      set_fact:
+        deploy_time: "2024-01-01T00:00:00Z"
+
+- name: Linux Tasks
+  hosts: linux
+  gather_facts: false
+  
+  tasks:
+    - name: Check disk space
+      shell: df -h /
+      register: disk_result
+    
+    - name: Show disk space
+      debug:
+        var: disk_result.stdout_lines
+
+- name: Windows Tasks
+  hosts: windows
+  gather_facts: false
+  
+  tasks:
+    - name: Check disk space
+      win_shell: Get-PSDrive C | Select-Object Used,Free
+      register: disk_result
+    
+    - name: Show disk space
+      debug:
+        var: disk_result.stdout

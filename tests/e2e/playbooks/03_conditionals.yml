@@ -1,0 +1,120 @@
+# Sansible E2E Test Playbook 03: Conditionals
+# Tests when, loop, with_items, changed_when, failed_when
+---
+- name: Conditionals - Linux
+  hosts: linux
+  gather_facts: true
+  vars:
+    items_list:
+      - alpha
+      - beta
+      - gamma
+    skip_this: true
+    run_this: false
+  tasks:
+    - name: Conditional - should run
+      debug:
+        msg: "This should run"
+      when: true
+
+    - name: Conditional - should skip (true check)
+      debug:
+        msg: "This should NOT appear"
+      when: skip_this == false
+
+    - name: Conditional based on fact
+      debug:
+        msg: "Running on {{ ansible_os_family }}"
+      when: ansible_os_family is defined
+
+    - name: Loop with list
+      debug:
+        msg: "Item: {{ item }}"
+      loop: "{{ items_list }}"
+
+    - name: Loop with index
+      debug:
+        msg: "Index {{ ansible_loop.index }}: {{ item }}"
+      loop:
+        - first
+        - second
+        - third
+
+    - name: Register and loop
+      shell: echo "Processing {{ item }}"
+      loop:
+        - one
+        - two
+      register: loop_results
+
+    - name: Show loop results
+      debug:
+        msg: "Result for {{ item.item }}: {{ item.stdout }}"
+      loop: "{{ loop_results.results }}"
+
+    - name: Command that always shows changed=false
+      command: echo "static output"
+      changed_when: false
+      register: no_change_result
+
+    - name: Verify changed_when worked
+      assert:
+        that:
+          - no_change_result.changed == false
+
+    - name: Command that always shows changed=true
+      command: echo "always changed"
+      changed_when: true
+      register: always_change_result
+
+    - name: Verify changed_when true worked
+      assert:
+        that:
+          - always_change_result.changed == true
+
+    - name: Command with failed_when override
+      command: grep "nonexistent" /dev/null
+      register: grep_result
+      failed_when: false
+
+    - name: Verify failed_when prevented failure
+      debug:
+        msg: "Command returned {{ grep_result.rc }} but did not fail"
+
+    - name: Conditional loop - only some items
+      debug:
+        msg: "Processing: {{ item }}"
+      loop:
+        - name: alpha
+          enabled: true
+        - name: beta
+          enabled: false
+        - name: gamma
+          enabled: true
+      when: item.enabled
+
+- name: Conditionals - Windows
+  hosts: windows
+  gather_facts: true
+  tasks:
+    - name: Conditional based on OS
+      debug:
+        msg: "This is Windows: {{ ansible_os_family }}"
+      when: ansible_os_family == "Windows"
+
+    - name: Loop on Windows
+      debug:
+        msg: "Windows item: {{ item }}"
+      loop:
+        - win_first
+        - win_second
+
+    - name: changed_when on Windows
+      win_command: hostname
+      changed_when: false
+      register: win_result
+
+    - name: Verify Windows changed_when
+      assert:
+        that:
+          - win_result.changed == false

@@ -1,0 +1,135 @@
+# Sansible E2E Test Playbook 05: Block/Rescue/Always
+# Tests block error handling, rescue recovery, and always cleanup
+---
+- name: Blocks - Linux
+  hosts: linux
+  gather_facts: false
+  vars:
+    test_dir: /tmp/sansible_block_test
+  tasks:
+    - name: Simple block
+      block:
+        - name: Task 1 in block
+          debug:
+            msg: "Block task 1"
+
+        - name: Task 2 in block
+          debug:
+            msg: "Block task 2"
+
+    - name: Block with rescue (error recovery)
+      block:
+        - name: This task will succeed
+          debug:
+            msg: "Block: Success"
+
+        - name: This task will fail
+          fail:
+            msg: "Intentional failure for testing"
+
+        - name: This should not run
+          debug:
+            msg: "This should NOT appear"
+
+      rescue:
+        - name: Rescue - handle the error
+          debug:
+            msg: "Rescue: Handling failure"
+
+        - name: Rescue - set recovery fact
+          set_fact:
+            recovered: true
+
+      always:
+        - name: Always - cleanup
+          debug:
+            msg: "Always: Running cleanup"
+
+    - name: Verify rescue ran
+      debug:
+        msg: "Recovery status: {{ recovered }}"
+      when: recovered is defined
+
+    - name: Block with always only (no rescue)
+      block:
+        - name: Create test directory
+          file:
+            path: "{{ test_dir }}"
+            state: directory
+
+        - name: Create test file
+          copy:
+            dest: "{{ test_dir }}/test.txt"
+            content: "Block always test"
+
+      always:
+        - name: Always cleanup directory
+          file:
+            path: "{{ test_dir }}"
+            state: absent
+
+    - name: Nested blocks
+      block:
+        - name: Outer block task
+          debug:
+            msg: "Outer block"
+
+        - name: Inner block
+          block:
+            - name: Inner block task 1
+              debug:
+                msg: "Inner block task 1"
+
+            - name: Inner block task 2
+              debug:
+                msg: "Inner block task 2"
+
+    - name: Block with conditional
+      block:
+        - name: Conditional block task
+          debug:
+            msg: "This block runs conditionally"
+      when: true
+
+    - name: Block with loop variable access
+      block:
+        - name: Use variable in block
+          debug:
+            msg: "Processing: {{ item }}"
+      loop:
+        - first
+        - second
+
+- name: Blocks - Windows
+  hosts: windows
+  gather_facts: false
+  tasks:
+    - name: Windows block with rescue
+      block:
+        - name: Win block task
+          debug:
+            msg: "Windows block task"
+
+        - name: Win intentional failure
+          fail:
+            msg: "Windows intentional failure"
+
+      rescue:
+        - name: Win rescue task
+          debug:
+            msg: "Windows rescue handled the error"
+
+        - name: Win rescue set fact
+          set_fact:
+            win_recovered: true
+
+      always:
+        - name: Win always task
+          debug:
+            msg: "Windows always cleanup"
+
+    - name: Verify Windows rescue
+      assert:
+        that:
+          - win_recovered == true
+        success_msg: "Windows block/rescue/always worked correctly"

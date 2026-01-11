@@ -1,0 +1,72 @@
+---
+# Sansible Examples - Windows Basic Tasks
+#
+# Demonstrates: win_command, win_shell, win_copy, win_file
+#
+# Run with:
+#   san run -i examples/inventory.ini examples/playbooks/win_01_basics.yml -l windows
+
+- name: Windows Basic Task Examples
+  hosts: windows
+  gather_facts: false
+
+  vars:
+    app_name: MyApplication
+    install_dir: C:\Apps
+
+  tasks:
+    # --- Debug ---
+    - name: Print deployment info
+      debug:
+        msg: "Deploying {{ app_name }} to {{ install_dir }}"
+
+    # --- Win Command ---
+    - name: Get Windows hostname
+      win_command: hostname
+      register: hostname_result
+
+    - name: Show hostname
+      debug:
+        var: hostname_result.stdout
+
+    # --- Win Shell (PowerShell) ---
+    - name: Get Windows version via PowerShell
+      win_shell: |
+        $os = Get-CimInstance Win32_OperatingSystem
+        Write-Output "Windows $($os.Caption) $($os.Version)"
+      register: version_result
+
+    - name: Show Windows version
+      debug:
+        var: version_result.stdout
+
+    # --- Win File (Directory) ---
+    - name: Create application directory
+      win_file:
+        path: "{{ install_dir }}\\{{ app_name }}"
+        state: directory
+
+    # --- Win Copy ---
+    - name: Create configuration file
+      win_copy:
+        content: |
+          # {{ app_name }} Configuration
+          [Settings]
+          Name={{ app_name }}
+          LogLevel=Info
+        dest: "{{ install_dir }}\\{{ app_name }}\\config.ini"
+
+    # --- Verify ---
+    - name: Check directory exists
+      win_command: dir "{{ install_dir }}\\{{ app_name }}"
+      register: dir_listing
+
+    - name: Show directory
+      debug:
+        var: dir_listing.stdout
+
+    # --- Cleanup ---
+    - name: Remove application directory
+      win_file:
+        path: "{{ install_dir }}\\{{ app_name }}"
+        state: absent

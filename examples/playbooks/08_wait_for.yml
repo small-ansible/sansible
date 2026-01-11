@@ -1,0 +1,84 @@
+---
+# Sansible Examples - Wait For
+#
+# Demonstrates: wait_for module for ports and files
+#
+# Run with:
+#   san run -i examples/inventory.ini examples/playbooks/08_wait_for.yml -l localhost
+
+- name: Wait For Examples
+  hosts: localhost
+  gather_facts: false
+
+  vars:
+    test_dir: /tmp/neo_wait_examples
+
+  tasks:
+    - name: Setup
+      file:
+        path: "{{ test_dir }}"
+        state: directory
+
+    # --- Wait for file to exist ---
+    - name: Create file in background (simulated)
+      shell: "(sleep 1 && touch {{ test_dir }}/ready.flag) &"
+
+    - name: Wait for file to exist
+      wait_for:
+        path: "{{ test_dir }}/ready.flag"
+        state: present
+        timeout: 10
+
+    - name: File appeared
+      debug:
+        msg: "The ready.flag file now exists!"
+
+    # --- Wait for file to be absent ---
+    - name: Remove file in background
+      shell: "(sleep 1 && rm -f {{ test_dir }}/ready.flag) &"
+
+    - name: Wait for file to be removed
+      wait_for:
+        path: "{{ test_dir }}/ready.flag"
+        state: absent
+        timeout: 10
+
+    - name: File removed
+      debug:
+        msg: "The ready.flag file has been removed!"
+
+    # --- Wait for port (example - adjust port as needed) ---
+    # Note: This example checks if SSH is listening (usually port 22)
+    - name: Wait for SSH port
+      wait_for:
+        port: 22
+        host: localhost
+        state: started
+        timeout: 5
+      ignore_errors: true
+      register: ssh_check
+
+    - name: SSH port status
+      debug:
+        msg: "SSH port 22 is {{ 'available' if ssh_check is not failed else 'not available' }}"
+
+    # --- Wait with delay ---
+    - name: Create delayed file
+      shell: "(sleep 2 && touch {{ test_dir }}/delayed.flag) &"
+
+    - name: Wait with initial delay
+      wait_for:
+        path: "{{ test_dir }}/delayed.flag"
+        state: present
+        delay: 1
+        timeout: 10
+
+    - name: Delayed file appeared
+      debug:
+        msg: "Delayed file is ready!"
+
+    # --- Cleanup ---
+    - name: Cleanup
+      file:
+        path: "{{ test_dir }}"
+        state: absent

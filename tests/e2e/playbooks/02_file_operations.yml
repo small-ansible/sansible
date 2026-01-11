@@ -1,0 +1,149 @@
+# Sansible E2E Test Playbook 02: File Operations
+# Tests file, copy, stat, lineinfile, template modules
+---
+- name: File Operations - Linux
+  hosts: linux
+  gather_facts: false
+  vars:
+    test_dir: /tmp/sansible_test
+    test_file: "{{ test_dir }}/testfile.txt"
+  tasks:
+    - name: Create test directory
+      file:
+        path: "{{ test_dir }}"
+        state: directory
+        mode: "0755"
+      register: dir_result
+
+    - name: Verify directory created
+      assert:
+        that:
+          - dir_result.changed or dir_result.changed == false
+
+    - name: Copy content to file
+      copy:
+        dest: "{{ test_file }}"
+        content: |
+          Line 1: Hello
+          Line 2: World
+          Line 3: Test
+      register: copy_result
+
+    - name: Verify copy worked
+      stat:
+        path: "{{ test_file }}"
+      register: stat_result
+
+    - name: Assert file exists
+      assert:
+        that:
+          - stat_result.stat.exists == true
+          - stat_result.stat.isreg == true
+        success_msg: "File was created successfully"
+
+    - name: Add line with lineinfile
+      lineinfile:
+        path: "{{ test_file }}"
+        line: "Line 4: Added by lineinfile"
+        state: present
+      register: line_result
+
+    - name: Verify line was added
+      command: grep "Line 4" {{ test_file }}
+      register: grep_result
+
+    - name: Assert lineinfile worked
+      assert:
+        that:
+          - grep_result.rc == 0
+        success_msg: "lineinfile added line correctly"
+
+    - name: Create file from template
+      template:
+        src: templates/test.txt.j2
+        dest: "{{ test_dir }}/from_template.txt"
+      vars:
+        hostname: "{{ inventory_hostname }}"
+        timestamp: "{{ ansible_date_time.date | default('2024-01-01') }}"
+
+    - name: Remove test file
+      file:
+        path: "{{ test_file }}"
+        state: absent
+      register: remove_result
+
+    - name: Verify file removed
+      stat:
+        path: "{{ test_file }}"
+      register: stat_after
+
+    - name: Assert file is gone
+      assert:
+        that:
+          - stat_after.stat.exists == false
+        success_msg: "File was removed successfully"
+
+    - name: Cleanup test directory
+      file:
+        path: "{{ test_dir }}"
+        state: absent
+
+- name: File Operations - Windows
+  hosts: windows
+  gather_facts: false
+  vars:
+    test_dir: C:\temp\sansible_test
+    test_file: "{{ test_dir }}\\testfile.txt"
+  tasks:
+    - name: Create test directory
+      win_file:
+        path: "{{ test_dir }}"
+        state: directory
+      register: dir_result
+
+    - name: Copy content to file
+      win_copy:
+        dest: "{{ test_file }}"
+        content: |
+          Line 1: Hello Windows
+          Line 2: World
+          Line 3: Test
+      register: copy_result
+
+    - name: Verify copy worked
+      win_stat:
+        path: "{{ test_file }}"
+      register: stat_result
+
+    - name: Assert file exists
+      assert:
+        that:
+          - stat_result.stat.exists == true
+        success_msg: "Windows file was created successfully"
+
+    - name: Add line with win_lineinfile
+      win_lineinfile:
+        path: "{{ test_file }}"
+        line: "Line 4: Added by win_lineinfile"
+        state: present
+
+    - name: Remove test file
+      win_file:
+        path: "{{ test_file }}"
+        state: absent
+
+    - name: Verify file removed
+      win_stat:
+        path: "{{ test_file }}"
+      register: stat_after
+
+    - name: Assert file is gone
+      assert:
+        that:
+          - stat_after.stat.exists == false
+        success_msg: "Windows file was removed successfully"
+
+    - name: Cleanup test directory
+      win_file:
+        path: "{{ test_dir }}"
+        state: absent

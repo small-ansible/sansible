@@ -1,0 +1,23 @@
+---
+# Sansible Examples - Roles
+#
+# Demonstrates: role usage with defaults and tasks
+#
+# Run with:
+#   san run -i examples/inventory.ini examples/playbooks/10_roles.yml -l localhost
+
+- name: Role Usage Example
+  hosts: localhost
+  gather_facts: false
+
+  vars:
+    # Override role defaults
+    demo_message: "Custom message from playbook!"
+
+  roles:
+    - demo_role
+
+  tasks:
+    - name: Post-role task
+      debug:
+        msg: "Tasks after role execution"
