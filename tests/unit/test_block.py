@@ -13,11 +13,9 @@ from sansible.connections.base import RunResult
 class TestBlockParsing:
     """Test block parsing in playbooks."""
     
-    def test_task_can_have_block(self):
+    def test_task_can_have_block(self, tmp_path):
         """Task can contain a block of subtasks."""
         from sansible.engine.playbook import PlaybookParser
-        import tempfile
-        import os
         
         playbook_content = """
 - name: Test play
@@ -30,24 +28,19 @@ class TestBlockParsing:
         - name: Another task
           command: echo world
 """
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.yml', delete=False) as f:
-            f.write(playbook_content)
-            f.flush()
-            
-            parser = PlaybookParser(f.name)
-            plays = parser.parse()
-            
-            os.unlink(f.name)
-            
-            assert len(plays) == 1
-            # Block should be expanded into tasks
-            assert len(plays[0].tasks) >= 2
+        playbook_file = tmp_path / "test.yml"
+        playbook_file.write_text(playbook_content)
+        
+        parser = PlaybookParser(str(playbook_file))
+        plays = parser.parse()
+        
+        assert len(plays) == 1
+        # Block should be expanded into tasks
+        assert len(plays[0].tasks) >= 2
     
-    def test_block_with_rescue(self):
+    def test_block_with_rescue(self, tmp_path):
         """Block can have rescue section for error handling."""
         from sansible.engine.playbook import PlaybookParser
-        import tempfile
-        import os
         
         playbook_content = """
 - name: Test play
@@ -62,22 +55,17 @@ class TestBlockParsing:
           debug:
             msg: "Rescued!"
 """
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.yml', delete=False) as f:
-            f.write(playbook_content)
-            f.flush()
-            
-            parser = PlaybookParser(f.name)
-            plays = parser.parse()
-            
-            os.unlink(f.name)
-            
-            assert len(plays) == 1
+        playbook_file = tmp_path / "test.yml"
+        playbook_file.write_text(playbook_content)
+        
+        parser = PlaybookParser(str(playbook_file))
+        plays = parser.parse()
+        
+        assert len(plays) == 1
     
-    def test_block_with_always(self):
+    def test_block_with_always(self, tmp_path):
         """Block can have always section that runs regardless of errors."""
         from sansible.engine.playbook import PlaybookParser
-        import tempfile
-        import os
         
         playbook_content = """
 - name: Test play
@@ -92,16 +80,13 @@ class TestBlockParsing:
           debug:
             msg: "Cleanup"
 """
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.yml', delete=False) as f:
-            f.write(playbook_content)
-            f.flush()
-            
-            parser = PlaybookParser(f.name)
-            plays = parser.parse()
-            
-            os.unlink(f.name)
-            
-            assert len(plays) == 1
+        playbook_file = tmp_path / "test.yml"
+        playbook_file.write_text(playbook_content)
+        
+        parser = PlaybookParser(str(playbook_file))
+        plays = parser.parse()
+        
+        assert len(plays) == 1
 
 
 class TestBlockExecution:

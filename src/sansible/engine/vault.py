@@ -38,12 +38,18 @@ class VaultSecret:
     @classmethod
     def from_file(cls, password_file: Union[str, Path]) -> 'VaultSecret':
         """Load vault password from a file."""
+        import sys
+        
         path = Path(password_file)
         if not path.exists():
             raise VaultError(f"Vault password file not found: {path}")
         
         # Check if it's executable (password script)
-        if os.access(path, os.X_OK):
+        # On Unix: executable bit is set
+        # On Windows: executable scripts not supported for vault passwords
+        is_executable = os.access(path, os.X_OK) and sys.platform != 'win32'
+        
+        if is_executable:
             import subprocess
             try:
                 result = subprocess.run(

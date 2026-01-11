@@ -162,6 +162,8 @@ class InventoryManager:
         Returns:
             self for chaining
         """
+        import sys
+        
         source_path = Path(source) if isinstance(source, str) else source
         
         if not source_path.exists():
@@ -171,7 +173,11 @@ class InventoryManager:
             self._inventory_dir = source_path.parent
             
             # Check if it's an executable (dynamic inventory script)
-            if os.access(source_path, os.X_OK):
+            # On Unix: check execute bit
+            # On Windows: check for executable extensions AND execute bit (if set)
+            is_executable = os.access(source_path, os.X_OK)
+            
+            if is_executable:
                 self._parse_dynamic_inventory(source_path)
             else:
                 self._parse_file(source_path)
@@ -204,9 +210,18 @@ class InventoryManager:
         
         The script should return JSON when called with --list.
         """
+        import sys
+        
         try:
+            # Build command - on Windows, Python scripts need explicit interpreter
+            script_str = str(script_path)
+            if sys.platform == 'win32' and script_str.endswith('.py'):
+                cmd = [sys.executable, script_str, '--list']
+            else:
+                cmd = [script_str, '--list']
+            
             result = subprocess.run(
-                [str(script_path), '--list'],
+                cmd,
                 capture_output=True,
                 text=True,
                 timeout=60,

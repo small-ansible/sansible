@@ -33,12 +33,23 @@ class TestPathJoining:
         assert "bar" in result
     
     def test_safe_join_allows_subpath(self):
-        result = paths.safe_join("/base", "sub", "file.txt")
-        assert result.startswith("/base")
+        import sys
+        if sys.platform == 'win32':
+            result = paths.safe_join("C:\\base", "sub", "file.txt")
+            assert "base" in result
+            assert "sub" in result
+        else:
+            result = paths.safe_join("/base", "sub", "file.txt")
+            assert result.startswith("/base")
     
     def test_safe_join_blocks_traversal(self):
-        with pytest.raises(ValueError, match="traversal"):
-            paths.safe_join("/base", "..", "etc", "passwd")
+        import sys
+        if sys.platform == 'win32':
+            with pytest.raises(ValueError, match="traversal"):
+                paths.safe_join("C:\\base", "..", "Windows", "System32")
+        else:
+            with pytest.raises(ValueError, match="traversal"):
+                paths.safe_join("/base", "..", "etc", "passwd")
 
 
 class TestPathUtilities:

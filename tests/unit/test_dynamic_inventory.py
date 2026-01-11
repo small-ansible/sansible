@@ -6,10 +6,17 @@ import json
 import os
 import pytest
 import stat
+import sys
 import tempfile
 from pathlib import Path
 
 from sansible.engine.inventory import InventoryManager
+
+# Skip dynamic inventory tests on Windows - executable bit model doesn't work
+pytestmark = pytest.mark.skipif(
+    sys.platform == 'win32',
+    reason="Dynamic inventory via execute bit not supported on Windows"
+)
 
 
 class TestDynamicInventory:

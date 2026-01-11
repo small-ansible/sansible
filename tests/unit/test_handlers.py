@@ -18,11 +18,9 @@ class TestHandlerParsing:
         play = Play(name="test", hosts="all", tasks=[], handlers=[])
         assert hasattr(play, 'handlers')
     
-    def test_parse_handlers_in_play(self):
+    def test_parse_handlers_in_play(self, tmp_path):
         """Handlers section is parsed from playbook."""
         from sansible.engine.playbook import PlaybookParser
-        import tempfile
-        import os
         
         playbook_content = """
 - name: Test play
@@ -35,18 +33,15 @@ class TestHandlerParsing:
     - name: Restart service
       command: echo restarting
 """
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.yml', delete=False) as f:
-            f.write(playbook_content)
-            f.flush()
-            
-            parser = PlaybookParser(f.name)
-            plays = parser.parse()
-            
-            os.unlink(f.name)
-            
-            assert len(plays) == 1
-            assert len(plays[0].handlers) == 1
-            assert plays[0].handlers[0].name == "Restart service"
+        playbook_file = tmp_path / "test.yml"
+        playbook_file.write_text(playbook_content)
+        
+        parser = PlaybookParser(str(playbook_file))
+        plays = parser.parse()
+        
+        assert len(plays) == 1
+        assert len(plays[0].handlers) == 1
+        assert plays[0].handlers[0].name == "Restart service"
 
 
 class TestNotifyParsing:
@@ -64,11 +59,9 @@ class TestNotifyParsing:
         task = Task(name="test", module="command", args={"cmd": "echo"})
         assert task.notify == []
     
-    def test_parse_notify_string(self):
+    def test_parse_notify_string(self, tmp_path):
         """Notify can be a single string."""
         from sansible.engine.playbook import PlaybookParser
-        import tempfile
-        import os
         
         playbook_content = """
 - name: Test play
@@ -82,22 +75,17 @@ class TestNotifyParsing:
       debug:
         msg: "handled"
 """
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.yml', delete=False) as f:
-            f.write(playbook_content)
-            f.flush()
-            
-            parser = PlaybookParser(f.name)
-            plays = parser.parse()
-            
-            os.unlink(f.name)
-            
-            assert plays[0].tasks[0].notify == ["My handler"]
+        playbook_file = tmp_path / "test.yml"
+        playbook_file.write_text(playbook_content)
+        
+        parser = PlaybookParser(str(playbook_file))
+        plays = parser.parse()
+        
+        assert plays[0].tasks[0].notify == ["My handler"]
     
-    def test_parse_notify_list(self):
+    def test_parse_notify_list(self, tmp_path):
         """Notify can be a list of handlers."""
         from sansible.engine.playbook import PlaybookParser
-        import tempfile
-        import os
         
         playbook_content = """
 - name: Test play
@@ -116,16 +104,13 @@ class TestNotifyParsing:
       debug:
         msg: "two"
 """
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.yml', delete=False) as f:
-            f.write(playbook_content)
-            f.flush()
-            
-            parser = PlaybookParser(f.name)
-            plays = parser.parse()
-            
-            os.unlink(f.name)
-            
-            assert plays[0].tasks[0].notify == ["Handler one", "Handler two"]
+        playbook_file = tmp_path / "test.yml"
+        playbook_file.write_text(playbook_content)
+        
+        parser = PlaybookParser(str(playbook_file))
+        plays = parser.parse()
+        
+        assert plays[0].tasks[0].notify == ["Handler one", "Handler two"]
 
 
 class TestHandlerExecution:
