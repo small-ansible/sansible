@@ -29,6 +29,12 @@ src/sansible/engine/runner.py
 src/sansible/engine/scheduler.py
 src/sansible/engine/templating.py
 src/sansible/engine/vault.py
+src/sansible/galaxy/__init__.py
+src/sansible/galaxy/config.py
+src/sansible/galaxy/executor.py
+src/sansible/galaxy/loader.py
+src/sansible/galaxy/module.py
+src/sansible/galaxy/win_executor.py
 src/sansible/inventory/__init__.py
 src/sansible/inventory/group.py
 src/sansible/inventory/host.py
