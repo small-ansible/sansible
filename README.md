@@ -67,7 +67,7 @@ localhost ansible_connection=local
 Run it:
 
 \`\`\`bash
-san run -i inventory.ini hello.yml
+sansible-playbook -i inventory.ini hello.yml
 \`\`\`
 
 Output:
@@ -117,7 +117,7 @@ The \`examples/playbooks/\` directory contains runnable examples for all feature
 Run any example:
 
 \`\`\`bash
-san run -i examples/playbooks/inventory.ini examples/playbooks/01_basics.yml -l localhost
+sansible-playbook -i examples/playbooks/inventory.ini examples/playbooks/01_basics.yml -l localhost
 \`\`\`
 
 ## 🛠 Supported Features
@@ -171,10 +171,10 @@ san run -i examples/playbooks/inventory.ini examples/playbooks/01_basics.yml -l 
 
 ## 📋 CLI Reference
 
-### san run / sansible-playbook
+### sansible-playbook
 
 \`\`\`bash
-san run -i INVENTORY PLAYBOOK [OPTIONS]
+sansible-playbook -i INVENTORY PLAYBOOK [OPTIONS]
 
 Options:
   -i, --inventory FILE    Inventory file or directory
@@ -195,22 +195,22 @@ Options:
 
 \`\`\`bash
 # Basic execution
-san run -i inventory.ini playbook.yml
+sansible-playbook -i inventory.ini playbook.yml
 
 # Limit to specific hosts
-san run -i inventory.ini playbook.yml -l webservers
+sansible-playbook -i inventory.ini playbook.yml -l webservers
 
 # Check mode (dry run)
-san run -i inventory.ini playbook.yml --check
+sansible-playbook -i inventory.ini playbook.yml --check
 
 # Show what would change
-san run -i inventory.ini playbook.yml --check --diff
+sansible-playbook -i inventory.ini playbook.yml --check --diff
 
 # Extra variables
-san run -i inventory.ini playbook.yml -e "version=2.0"
+sansible-playbook -i inventory.ini playbook.yml -e "version=2.0"
 
 # JSON output for scripting
-san run -i inventory.ini playbook.yml --json
+sansible-playbook -i inventory.ini playbook.yml --json
 \`\`\`
 
 ## ⚠️ Not Supported

@@ -71,8 +71,7 @@ dev = [
 ]
 
 [project.scripts]
-san = "sansible.san_cli:main"
-sansible = "sansible.san_cli:main"
+sansible = "sansible.cli.main:main"
 sansible-playbook = "sansible.cli.playbook:main"
 sansible-inventory = "sansible.cli.inventory:main"
 sansible-compat-scan = "sansible.compat_scan:main"

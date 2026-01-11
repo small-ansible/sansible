@@ -72,8 +72,9 @@ jobs:
                   raise SystemExit(main())
               """))
 
-          write_wrapper("build/entry_san.py", "san")
+          write_wrapper("build/entry_sansible.py", "sansible")
           write_wrapper("build/entry_sansible_playbook.py", "sansible-playbook")
+          write_wrapper("build/entry_sansible_inventory.py", "sansible-inventory")
           PY
 
       - name: Build with PyInstaller
@@ -95,17 +96,23 @@ jobs:
           done
 
           # Include transport libs too (safe even if already pulled via collect-all)
-          python -m PyInstaller -y --onefile --name san \
+          python -m PyInstaller -y --onefile --name sansible \
             $COLLECT_ARGS \
             --collect-all asyncssh \
             --collect-all pypsrp \
-            build/entry_san.py
+            build/entry_sansible.py
 
           python -m PyInstaller -y --onefile --name sansible-playbook \
             $COLLECT_ARGS \
             --collect-all asyncssh \
             --collect-all pypsrp \
             build/entry_sansible_playbook.py
+
+          python -m PyInstaller -y --onefile --name sansible-inventory \
+            $COLLECT_ARGS \
+            --collect-all asyncssh \
+            --collect-all pypsrp \
+            build/entry_sansible_inventory.py
 
       - name: Smoke test binaries
         run: |
@@ -114,11 +121,13 @@ jobs:
           from pathlib import Path
 
           dist = Path("dist")
-          san = dist / ("san.exe" if os.name == "nt" else "san")
+          sansible = dist / ("sansible.exe" if os.name == "nt" else "sansible")
           spb = dist / ("sansible-playbook.exe" if os.name == "nt" else "sansible-playbook")
+          sinv = dist / ("sansible-inventory.exe" if os.name == "nt" else "sansible-inventory")
 
-          subprocess.run([str(san), "--help"], check=True)
+          subprocess.run([str(sansible), "--help"], check=True)
           subprocess.run([str(spb), "--help"], check=True)
+          subprocess.run([str(sinv), "--help"], check=True)
           PY
 
       - name: Package artifacts (zip)
@@ -142,7 +151,7 @@ jobs:
 
           dist = Path("dist")
           # Only ship the built executables
-          for name in ["san", "sansible-playbook"]:
+          for name in ["sansible", "sansible-playbook", "sansible-inventory"]:
               exe = dist / (f"{name}.exe" if os.name == "nt" else name)
               shutil.copy2(exe, stage / exe.name)
 
