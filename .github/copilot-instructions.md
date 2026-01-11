@@ -90,6 +90,7 @@ Use exceptions from [engine/errors.py](src/sansible/engine/errors.py):
 ## Out of Scope
 
 Raise `UnsupportedFeatureError` for: `async/poll`, Galaxy collections, complex lookups.
+- Ad-hoc `sansible` and `sansible-inventory` CLIs are placeholders; playbook CLI is the supported path.
 
 ## Supported Modules (63 total)
 

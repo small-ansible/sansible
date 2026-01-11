@@ -116,13 +116,6 @@ Examples:
     )
     
     parser.add_argument(
-        "--artifacts-dir",
-        dest="artifacts_dir",
-        default=None,
-        help="Directory to write run artifacts (default: ./artifacts/<timestamp>)",
-    )
-    
-    parser.add_argument(
         "--json",
         action="store_true",
         help="Output results in JSON format",

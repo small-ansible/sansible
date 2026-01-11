@@ -213,6 +213,7 @@ See [docs/GALAXY.md](docs/GALAXY.md) for full Galaxy support details.
 | Galaxy collections install | Out of scope |
 | Callbacks/Plugins | Architecture |
 | Molecule testing | External tool |
+| `sansible` / `sansible-inventory` CLIs | Ad-hoc/inventory entrypoints currently placeholders |
 
 ---
 
