@@ -5,13 +5,188 @@ Jinja2-based templating with a minimal filter set for variable expansion.
 """
 
 import base64
+import glob
 import json
+import os
 import re
+import subprocess
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Union
 
 from jinja2 import Environment, StrictUndefined, TemplateSyntaxError, UndefinedError
 
 from sansible.engine.errors import TemplateError
+
+
+# ============================================================================
+# Lookup Functions
+# ============================================================================
+
+def _lookup_file(path: str, **kwargs) -> str:
+    """
+    Read contents of a file.
+    
+    Usage: {{ lookup('file', '/path/to/file') }}
+    """
+    lstrip = kwargs.get('lstrip', True)
+    rstrip = kwargs.get('rstrip', True)
+    
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        if lstrip:
+            content = content.lstrip()
+        if rstrip:
+            content = content.rstrip()
+        return content
+    except FileNotFoundError:
+        raise TemplateError(f"lookup('file'): File not found: {path}")
+    except Exception as e:
+        raise TemplateError(f"lookup('file'): Error reading {path}: {e}")
+
+
+def _lookup_env(var_name: str, default: str = '', **kwargs) -> str:
+    """
+    Get environment variable value.
+    
+    Usage: {{ lookup('env', 'HOME') }}
+           {{ lookup('env', 'MISSING', default='fallback') }}
+    """
+    return os.environ.get(var_name, default)
+
+
+def _lookup_pipe(command: str, **kwargs) -> str:
+    """
+    Execute a command and return its output.
+    
+    Usage: {{ lookup('pipe', 'date +%Y-%m-%d') }}
+    """
+    try:
+        result = subprocess.run(
+            command,
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=kwargs.get('timeout', 30),
+        )
+        return result.stdout.rstrip('\n')
+    except subprocess.TimeoutExpired:
+        raise TemplateError(f"lookup('pipe'): Command timed out: {command}")
+    except Exception as e:
+        raise TemplateError(f"lookup('pipe'): Error executing {command}: {e}")
+
+
+def _lookup_fileglob(pattern: str, **kwargs) -> List[str]:
+    """
+    Return list of files matching a glob pattern.
+    
+    Usage: {{ lookup('fileglob', '/etc/*.conf') }}
+    """
+    return sorted(glob.glob(pattern))
+
+
+def _lookup_first_found(files: List[str], **kwargs) -> str:
+    """
+    Return the first file that exists from a list.
+    
+    Usage: {{ lookup('first_found', ['/path/a', '/path/b']) }}
+    """
+    paths = kwargs.get('paths', ['.'])
+    skip = kwargs.get('skip', False)
+    
+    for file in files:
+        # Check absolute path first
+        if os.path.isabs(file) and os.path.exists(file):
+            return file
+        # Check in each search path
+        for search_path in paths:
+            full_path = os.path.join(search_path, file)
+            if os.path.exists(full_path):
+                return full_path
+    
+    if skip:
+        return ''
+    raise TemplateError(f"lookup('first_found'): No file found from: {files}")
+
+
+def _lookup_items(*items, **kwargs) -> List[Any]:
+    """
+    Return list of items (useful for with_items replacement).
+    
+    Usage: {{ lookup('items', 'a', 'b', 'c') }}
+    """
+    return list(items)
+
+
+def _lookup_dict(data: Dict[str, Any], **kwargs) -> List[Dict[str, Any]]:
+    """
+    Convert dict to list of key/value dicts.
+    
+    Usage: {{ lookup('dict', {'a': 1, 'b': 2}) }}
+    Returns: [{'key': 'a', 'value': 1}, {'key': 'b', 'value': 2}]
+    """
+    return [{'key': k, 'value': v} for k, v in data.items()]
+
+
+def _lookup_password(path: str, **kwargs) -> str:
+    """
+    Read password from file (strips whitespace).
+    
+    Usage: {{ lookup('password', '/path/to/password_file') }}
+    """
+    try:
+        with open(path, 'r') as f:
+            return f.read().strip()
+    except FileNotFoundError:
+        raise TemplateError(f"lookup('password'): File not found: {path}")
+    except Exception as e:
+        raise TemplateError(f"lookup('password'): Error reading {path}: {e}")
+
+
+def _lookup_lines(path: str, **kwargs) -> List[str]:
+    """
+    Read file and return as list of lines.
+    
+    Usage: {{ lookup('lines', '/path/to/file') }}
+    """
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            return [line.rstrip('\n') for line in f.readlines()]
+    except FileNotFoundError:
+        raise TemplateError(f"lookup('lines'): File not found: {path}")
+    except Exception as e:
+        raise TemplateError(f"lookup('lines'): Error reading {path}: {e}")
+
+
+# Registry of lookup plugins
+LOOKUP_PLUGINS: Dict[str, Callable[..., Any]] = {
+    'file': _lookup_file,
+    'env': _lookup_env,
+    'pipe': _lookup_pipe,
+    'fileglob': _lookup_fileglob,
+    'first_found': _lookup_first_found,
+    'items': _lookup_items,
+    'dict': _lookup_dict,
+    'password': _lookup_password,
+    'lines': _lookup_lines,
+}
+
+
+def lookup(plugin_name: str, *args, **kwargs) -> Any:
+    """
+    Ansible-compatible lookup function.
+    
+    Usage in templates:
+        {{ lookup('file', '/path/to/file') }}
+        {{ lookup('env', 'HOME') }}
+        {{ lookup('pipe', 'date') }}
+    """
+    if plugin_name not in LOOKUP_PLUGINS:
+        raise TemplateError(
+            f"Unknown lookup plugin: '{plugin_name}'. "
+            f"Supported: {', '.join(sorted(LOOKUP_PLUGINS.keys()))}"
+        )
+    return LOOKUP_PLUGINS[plugin_name](*args, **kwargs)
 
 
 def _filter_default(value: Any, default: Any = '') -> Any:
@@ -143,6 +318,9 @@ class TemplateEngine:
         # Register filters from shared CUSTOM_FILTERS
         for name, func in CUSTOM_FILTERS.items():
             self.env.filters[name] = func
+        
+        # Register lookup function as a global (for use in templates)
+        self.env.globals['lookup'] = lookup
         
         # Register tests
         self.env.tests['defined'] = lambda x: x is not None

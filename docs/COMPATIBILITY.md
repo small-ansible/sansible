@@ -156,6 +156,22 @@ This document defines the **tested and verified** features of Sansible v0.4.
 | `b64encode` / `b64decode` | ✅ | ✅ | Base64 encoding |
 | `combine` | ✅ | ✅ | Dict merging |
 
+### Jinja2 Lookups
+
+Supported lookup plugins:
+
+| Lookup | Supported | Notes |
+|--------|:---------:|-------|
+| `file` | ✅ | Read file content |
+| `env` | ✅ | Read environment variable |
+| `pipe` | ✅ | Execute command and return stdout |
+| `fileglob` | ✅ | Glob pattern matches |
+| `first_found` | ✅ | Return first existing file |
+| `items` | ✅ | Return list of items |
+| `dict` | ✅ | Convert dict to list of {key,value} |
+| `password` | ✅ | Read password file (strips whitespace) |
+| `lines` | ✅ | Read file lines |
+
 ### Jinja2 Tests
 
 | Test | Linux | Windows | Notes |
@@ -202,7 +218,7 @@ This document defines the **tested and verified** features of Sansible v0.4.
 | Feature | Reason |
 |---------|--------|
 | `async` / `poll` | Asynchronous task execution |
-| `lookup()` functions | Complex Jinja2 lookups |
+| `lookup()` functions | Now supported (file, env, pipe, fileglob, first_found, items, dict, password, lines) |
 | Callbacks / Plugins | Architecture limitation |
 | Galaxy install (`ansible-galaxy`) | Out of scope |
 | Network device connections | netconf, etc. |
@@ -212,7 +228,7 @@ This document defines the **tested and verified** features of Sansible v0.4.
 
 ## Test Coverage
 
-### Unit Tests: 296 Passed ✅
+### Unit Tests: 307 Passed ✅
 
 All core functionality has comprehensive unit test coverage.
 
