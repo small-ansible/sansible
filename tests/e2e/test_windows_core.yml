@@ -1,0 +1,85 @@
+---
+# Fast Windows Module Test - Core modules only
+- name: Windows Core Module Test
+  hosts: windows
+  gather_facts: yes
+  vars:
+    test_dir: C:\sansible_test
+    test_file: "{{ test_dir }}\\test_file.txt"
+    
+  tasks:
+    - name: "win_ping"
+      win_ping:
+      register: ping_result
+    
+    - name: "win_command"
+      win_command: hostname
+      register: cmd_result
+    
+    - name: "win_shell"
+      win_shell: Write-Output "Hello PowerShell"
+      register: shell_result
+    
+    - name: "win_file - directory"
+      win_file:
+        path: "{{ test_dir }}"
+        state: directory
+    
+    - name: "win_copy"
+      win_copy:
+        content: "Test content Windows"
+        dest: "{{ test_file }}"
+    
+    - name: "win_stat"
+      win_stat:
+        path: "{{ test_file }}"
+      register: stat_result
+    
+    - name: "win_lineinfile"
+      win_lineinfile:
+        path: "{{ test_file }}"
+        line: "New line Windows"
+    
+    - name: "win_slurp"
+      win_slurp:
+        src: "{{ test_file }}"
+      register: slurp_result
+    
+    - name: "debug"
+      debug:
+        msg: "File content: {{ slurp_result.content | b64decode }}"
+    
+    - name: "set_fact"
+      set_fact:
+        my_win_fact: "windows value"
+    
+    - name: "assert"
+      assert:
+        that:
+          - my_win_fact == "windows value"
+          - stat_result.stat.exists
+    
+    - name: "win_wait_for - WinRM port"
+      win_wait_for:
+        port: 5985
+        host: localhost
+        timeout: 5
+    
+    - name: "win_service - check WinRM"
+      win_service:
+        name: WinRM
+        state: started
+      check_mode: yes
+    
+    - name: "cleanup"
+      win_file:
+        path: "{{ test_dir }}"
+        state: absent
+    
+    - name: "Summary"
+      debug:
+        msg: |
+          =============================
+          Windows Core Modules: ALL PASS
+          Host: {{ ansible_hostname }}
+          =============================

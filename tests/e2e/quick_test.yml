@@ -1,0 +1,43 @@
+---
+# Quick test playbook
+- name: Quick test
+  hosts: linux
+  gather_facts: no
+  vars:
+    test_dir: /tmp/sansible_test
+    test_file: "{{ test_dir }}/test.txt"
+    
+  tasks:
+    - name: Debug vars
+      debug:
+        msg: "test_dir={{ test_dir }}, test_file={{ test_file }}"
+    
+    - name: Create directory
+      file:
+        path: "{{ test_dir }}"
+        state: directory
+    
+    - name: Create test file
+      copy:
+        content: "hello world"
+        dest: "{{ test_file }}"
+    
+    - name: Read file
+      slurp:
+        src: "{{ test_file }}"
+      register: content
+    
+    - name: Show content
+      debug:
+        msg: "content={{ content.content | b64decode }}"
+    
+    - name: Add line
+      lineinfile:
+        path: "{{ test_file }}"
+        line: "new line"
+        state: present
+    
+    - name: Cleanup
+      file:
+        path: "{{ test_dir }}"
+        state: absent

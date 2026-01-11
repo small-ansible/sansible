@@ -1,0 +1,110 @@
+---
+# Fast Linux Module Test - Core modules only
+- name: Linux Core Module Test
+  hosts: linux
+  gather_facts: yes
+  vars:
+    test_dir: /tmp/sansible_test
+    test_file: "{{ test_dir }}/test_file.txt"
+    
+  tasks:
+    - name: "ping"
+      ping:
+      register: ping_result
+    
+    - name: "command"
+      command: echo "Hello"
+      register: cmd_result
+    
+    - name: "shell"
+      shell: echo "test" | grep test
+      register: shell_result
+    
+    - name: "file - directory"
+      file:
+        path: "{{ test_dir }}"
+        state: directory
+    
+    - name: "copy"
+      copy:
+        content: "Test content"
+        dest: "{{ test_file }}"
+    
+    - name: "stat"
+      stat:
+        path: "{{ test_file }}"
+      register: stat_result
+    
+    - name: "lineinfile"
+      lineinfile:
+        path: "{{ test_file }}"
+        line: "New line"
+    
+    - name: "slurp"
+      slurp:
+        src: "{{ test_file }}"
+      register: slurp_result
+    
+    - name: "debug"
+      debug:
+        msg: "File content: {{ slurp_result.content | b64decode }}"
+    
+    - name: "set_fact"
+      set_fact:
+        my_fact: "test value"
+    
+    - name: "assert"
+      assert:
+        that:
+          - my_fact == "test value"
+          - stat_result.stat.exists
+    
+    - name: "wait_for - port 22"
+      wait_for:
+        port: 22
+        host: localhost
+        timeout: 5
+    
+    - name: "tempfile"
+      tempfile:
+        state: file
+      register: tmp
+    
+    - name: "find"
+      find:
+        paths: "{{ test_dir }}"
+        patterns: "*.txt"
+      register: find_result
+    
+    - name: "blockinfile"
+      blockinfile:
+        path: "{{ test_file }}"
+        block: |
+          # Block content
+          line1
+          line2
+    
+    - name: "replace"
+      replace:
+        path: "{{ test_file }}"
+        regexp: 'line1'
+        replace: 'LINE1'
+    
+    - name: "cleanup"
+      file:
+        path: "{{ test_dir }}"
+        state: absent
+    
+    - name: "cleanup tempfile"
+      file:
+        path: "{{ tmp.path }}"
+        state: absent
+      ignore_errors: yes
+    
+    - name: "Summary"
+      debug:
+        msg: |
+          =============================
+          Linux Core Modules: ALL PASS
+          Host: {{ ansible_hostname }}
+          =============================

@@ -54,6 +54,24 @@ class PlaybookRunner:
         json_output: bool = False,
         vault_password: Optional[str] = None,
         vault_password_file: Optional[str] = None,
+        # Connection options
+        remote_user: Optional[str] = None,
+        connection_type: Optional[str] = None,
+        timeout: int = 30,
+        private_key_file: Optional[str] = None,
+        connection_password: Optional[str] = None,
+        # Privilege escalation
+        become: bool = False,
+        become_method: str = "sudo",
+        become_user: str = "root",
+        become_password: Optional[str] = None,
+        # Execution control
+        tags: Optional[str] = None,
+        skip_tags: Optional[str] = None,
+        start_at_task: Optional[str] = None,
+        step: bool = False,
+        force_handlers: bool = False,
+        flush_cache: bool = False,
     ):
         self.inventory_source = inventory_source
         self.playbook_paths = playbook_paths
@@ -67,6 +85,27 @@ class PlaybookRunner:
         self.vault_password = vault_password
         self.vault_password_file = vault_password_file
         
+        # Connection options
+        self.remote_user = remote_user
+        self.connection_type = connection_type
+        self.timeout = timeout
+        self.private_key_file = private_key_file
+        self.connection_password = connection_password
+        
+        # Privilege escalation
+        self.become = become
+        self.become_method = become_method
+        self.become_user = become_user
+        self.become_password = become_password
+        
+        # Execution control
+        self.tags = self._parse_tags(tags)
+        self.skip_tags = self._parse_tags(skip_tags)
+        self.start_at_task = start_at_task
+        self.step = step
+        self.force_handlers = force_handlers
+        self.flush_cache = flush_cache
+        
         # Components
         self.inventory: Optional[InventoryManager] = None
         self.template_engine = TemplateEngine()
@@ -78,6 +117,65 @@ class PlaybookRunner:
         
         # Initialize vault if password provided
         self._init_vault()
+    
+    @staticmethod
+    def _parse_tags(tags: Optional[str]) -> List[str]:
+        """Parse comma-separated tags into a list."""
+        if not tags:
+            return []
+        return [t.strip() for t in tags.split(',') if t.strip()]
+    
+    def _render_vars_iteratively(self, vars_dict: Dict[str, Any], base_vars: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Render variables iteratively to resolve cross-references.
+        
+        For example, if vars contain:
+            test_dir: /tmp/test
+            test_file: "{{ test_dir }}/file.txt"
+        
+        This will resolve test_file to /tmp/test/file.txt
+        """
+        if not vars_dict:
+            return {}
+        
+        # Merge base vars with new vars for rendering
+        context = base_vars.copy()
+        context.update(vars_dict)
+        
+        # Iterate to resolve nested references (max 10 iterations to prevent infinite loops)
+        max_iterations = 10
+        for _ in range(max_iterations):
+            rendered = {}
+            changed = False
+            
+            for key, value in vars_dict.items():
+                rendered_value = render_recursive(value, context)
+                
+                # Check if value changed (still contains templates)
+                if rendered_value != vars_dict.get(key):
+                    changed = True
+                
+                rendered[key] = rendered_value
+            
+            # Update context for next iteration
+            context.update(rendered)
+            vars_dict = rendered
+            
+            # Check if we're done (no more templates to render)
+            if not changed:
+                break
+            
+            # Check if any values still contain templates
+            has_templates = False
+            for v in rendered.values():
+                if isinstance(v, str) and ('{{' in v or '{%' in v):
+                    has_templates = True
+                    break
+            
+            if not has_templates:
+                break
+        
+        return vars_dict
     
     def _init_vault(self) -> None:
         """Initialize vault decryption if password is provided."""
@@ -213,8 +311,9 @@ class PlaybookRunner:
             )
             # Add playbook_dir to vars (for modules like template, script)
             ctx.vars['playbook_dir'] = playbook_dir
-            # Add play vars
-            ctx.vars.update(play.vars)
+            # Add play vars - render them first to resolve cross-references
+            rendered_play_vars = self._render_vars_iteratively(play.vars, ctx.get_vars())
+            ctx.vars.update(rendered_play_vars)
             # Add extra vars (highest priority)
             ctx.vars.update(self.extra_vars)
             host_contexts[host.name] = ctx
@@ -571,7 +670,26 @@ class PlaybookRunner:
     
     def _create_connection(self, host: Host) -> Connection:
         """Create a connection for a host based on connection type."""
-        conn_type = host.get_variable('ansible_connection', 'ssh')
+        # CLI-provided connection type takes precedence
+        conn_type = self.connection_type or host.get_variable('ansible_connection', 'ssh')
+        
+        # Apply CLI-provided options to host variables if not already set
+        if self.remote_user and not host.get_variable('ansible_user'):
+            host.vars['ansible_user'] = self.remote_user
+        if self.connection_password and not host.get_variable('ansible_password'):
+            host.vars['ansible_password'] = self.connection_password
+        if self.private_key_file and not host.get_variable('ansible_ssh_private_key_file'):
+            host.vars['ansible_ssh_private_key_file'] = self.private_key_file
+        if self.timeout and not host.get_variable('ansible_timeout'):
+            host.vars['ansible_timeout'] = self.timeout
+        
+        # Apply become options
+        if self.become:
+            host.vars['ansible_become'] = True
+            host.vars['ansible_become_method'] = self.become_method
+            host.vars['ansible_become_user'] = self.become_user
+            if self.become_password:
+                host.vars['ansible_become_password'] = self.become_password
         
         if conn_type == 'local':
             return LocalConnection(host)
@@ -581,6 +699,10 @@ class PlaybookRunner:
         elif conn_type in ('winrm', 'psrp'):
             from sansible.connections.winrm_psrp import WinRMConnection
             return WinRMConnection(host)
+        elif conn_type == 'paramiko':
+            # paramiko is just an alias for SSH in our implementation
+            from sansible.connections.ssh_asyncssh import SSHConnection
+            return SSHConnection(host)
         else:
             # Default to local for localhost
             if host.name in ('localhost', '127.0.0.1'):
