@@ -5,9 +5,9 @@
 
 from __future__ import annotations
 
-__version__ = "0.2.0"
+__version__ = "0.4.0"
 __author__ = "Sansible Contributors"
-__codename__ = "Pathfinder"
+__codename__ = "ModuleStorm"
 
 # Version info tuple for programmatic comparison
-VERSION_INFO = (0, 2, 0)
+VERSION_INFO = (0, 4, 0)

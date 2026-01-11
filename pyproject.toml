@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sansible"
-version = "0.3.0"
+version = "0.4.0"
 description = "Small Ansible - Minimal Ansible-compatible runner for Windows and Linux"
 readme = "README.md"
 license = {text = "MIT"}
