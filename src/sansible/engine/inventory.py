@@ -174,10 +174,10 @@ class InventoryManager:
             
             # Check if it's an executable (dynamic inventory script)
             # On Unix: check execute bit
-            # On Windows: check for executable extensions AND execute bit (if set)
-            is_executable = os.access(source_path, os.X_OK)
-            
-            if is_executable:
+            # On Windows: os.access(X_OK) always returns True, so we disable dynamic
+            # inventory detection based on execute bit on Windows. Users on Windows
+            # should use explicit script invocation or INI/YAML inventory files.
+            if sys.platform != 'win32' and os.access(source_path, os.X_OK):
                 self._parse_dynamic_inventory(source_path)
             else:
                 self._parse_file(source_path)
