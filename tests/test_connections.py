@@ -1,6 +1,7 @@
 """Connection plugins: paramiko ssh (routed from `ssh`), psrp to Windows, and winlocal on a Windows controller."""
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 
@@ -21,6 +22,11 @@ def _env(tmp_path: Path, **extra: str) -> dict[str, str]:
     (tmp_path / "home").mkdir(exist_ok=True)
     env.update(extra)
     return env
+
+
+def _extra_vars(**values: str) -> list[str]:
+    # JSON, not key=value: ansible's key=value parser treats backslashes in Windows paths as escapes
+    return ["-e", json.dumps(values)]
 
 
 def _run_twice(play: Path, inv: str, env: dict, args: list[str]):
@@ -49,7 +55,8 @@ def test_ssh_via_paramiko(tmp_path):
     out_dir = os.environ.get("SANSIBLE_TEST_REMOTE_DIR") or (r"C:\Windows\Temp\sansible-ssh" if windows_target else str(tmp_path / "remote"))
     fetch = tmp_path / "fetched"
     env = _env(tmp_path, SANSIBLE_SSH="paramiko", ANSIBLE_HOST_KEY_CHECKING="True", ANSIBLE_PARAMIKO_HOST_KEY_AUTO_ADD="True")
-    first, second = _run_twice(play, inv, env, ["-e", f"out_dir={out_dir}", "-e", f"fetch_dir={fetch.as_posix()}"])
+    # -vvv so a failure shows the exact command and the target's output
+    first, second = _run_twice(play, inv, env, ["-vvv", *_extra_vars(out_dir=out_dir, fetch_dir=fetch.as_posix())])
     assert first["target"]["changed"] > second["target"]["changed"]
     assert (fetch / "tmpl.txt").read_text().strip() == "x=a,b"
     assert (tmp_path / "home" / ".ssh" / "known_hosts").exists(), "new host key was not recorded"
@@ -64,7 +71,7 @@ def test_psrp_windows_target(tmp_path):
     ]))
     fetch = tmp_path / "fetched"
     _, second = _run_twice(DATA / "windows" / "remote.yml", inv, _env(tmp_path),
-                               ["-e", r"out_dir=C:\Windows\Temp\sansible-psrp", "-e", f"fetch_dir={fetch.as_posix()}"])
+                               _extra_vars(out_dir=r"C:\Windows\Temp\sansible-psrp", fetch_dir=fetch.as_posix()))
     assert second["target"]["changed"] <= 1  # win_shell always reports changed
     assert (fetch / "tmpl.txt").read_text().strip() == "x=a,b"
 
@@ -75,7 +82,7 @@ def test_windows_controller_localhost(tmp_path):
     """Implicit localhost on a Windows controller runs through sansible.core.winlocal."""
     inv = write_inventory(tmp_path / "local.ini", "localhost ansible_connection=local\n")
     out_dir = str(tmp_path / "local-out")
-    first, second = _run_twice(DATA / "windows" / "local.yml", inv, _env(tmp_path), ["-e", f"out_dir={out_dir}"])
+    first, second = _run_twice(DATA / "windows" / "local.yml", inv, _env(tmp_path), _extra_vars(out_dir=out_dir))
     assert first["localhost"]["changed"] > second["localhost"]["changed"]
     assert Path(out_dir, "tmpl.txt").read_text().strip() == "x=a,b"
 

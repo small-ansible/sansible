@@ -59,6 +59,9 @@ changing a line of ansible-core on disk:
 - `become` on the local connection isn't supported. Run Ansible from an elevated prompt
   instead.
 - Network appliances that need `ansible.netcommon` persistent connections are untested.
+- Windows paths and backslashes: ansible's INI inventory format and `-e key=value` extra vars
+  both treat `\` as an escape character (`C:\temp` turns into a tab). Use forward slashes
+  (`C:/keys/id_ed25519`), YAML inventories, or JSON extra vars (`-e '{"dir": "C:\\temp"}'`).
 
 ## Versions
 
