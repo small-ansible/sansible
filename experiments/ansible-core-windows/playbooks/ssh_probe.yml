@@ -1,0 +1,4 @@
+- hosts: sshprobe
+  gather_facts: false
+  tasks:
+    - ping:

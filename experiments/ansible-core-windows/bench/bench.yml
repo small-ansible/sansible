@@ -1,0 +1,24 @@
+- hosts: all
+  gather_facts: false
+  vars: {payload: "{{ range(200) | list }}"}
+  tasks:
+    - debug: {msg: "{{ payload | length }}"}
+    - command: "true"
+    - debug: {msg: "{{ payload | length }}"}
+    - command: "true"
+    - debug: {msg: "{{ payload | length }}"}
+    - command: "true"
+    - debug: {msg: "{{ payload | length }}"}
+    - command: "true"
+    - debug: {msg: "{{ payload | length }}"}
+    - command: "true"
+    - debug: {msg: "{{ payload | length }}"}
+    - command: "true"
+    - debug: {msg: "{{ payload | length }}"}
+    - command: "true"
+    - debug: {msg: "{{ payload | length }}"}
+    - command: "true"
+    - debug: {msg: "{{ payload | length }}"}
+    - command: "true"
+    - debug: {msg: "{{ payload | length }}"}
+    - command: "true"

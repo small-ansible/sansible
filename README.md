@@ -421,6 +421,7 @@ curl -s https://raw.githubusercontent.com/small-ansible/sansible/main/.github/AG
 ## 📚 Documentation
 
 - [Architecture](docs/ARCHITECTURE.md) — System design
+- [Architecture Review & Roadmap](docs/ARCHITECTURE_REVIEW.md) — Known gaps and the plan to v1.0
 - [Compatibility](docs/COMPATIBILITY.md) — Feature matrix
 - [Galaxy Support](docs/GALAXY.md) — FQCN and collections
 - [Testing](docs/TESTING.md) — Test instructions

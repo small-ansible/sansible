@@ -1,0 +1,16 @@
+- name: controller-only actions (no module execution)
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars: {items_var: [a, b]}
+  tasks:
+    - debug: msg="item={{ item }}"
+      loop: "{{ items_var }}"
+    - set_fact: {x: "{{ items_var | length }}"}
+    - assert: {that: [x | int == 2]}
+    - debug: msg="{{ lookup('template', 't.j2') | trim }} | {{ lookup('env', 'COMPUTERNAME') }}"
+      changed_when: true
+      notify: h1
+  handlers:
+    - name: h1
+      debug: msg="HANDLER RAN"

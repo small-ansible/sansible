@@ -1,0 +1,40 @@
+- name: main
+  hosts: all
+  gather_facts: false
+  vars:
+    vaulted: !vault |
+              $ANSIBLE_VAULT;1.1;AES256
+              63353539386337396664316465653862366462366165623061383664366439353633303466353165
+              6630326438623862623036636139613133363636613231340a643365393032656331663436313538
+              37646539616138613661656430623132366332396336396435333437393134313034366236323334
+              6630333931356463380a663537313730643763633237316432303931353962303564393034613436
+              61636331363130336530316466626236396166353063643733643161376231373862
+  roles: [myrole]
+  tasks:
+    - set_fact: {n: "{{ inventory_hostname[1:] | int }}"}
+    - command: echo {{ n }}
+      register: out
+      changed_when: out.stdout | int > 3
+    - debug: msg="{{ 'x' | shout }} {{ vaulted | length }}"
+    - group_by: {key: "parity_{{ (n | int) % 2 }}"}
+    - add_host: {name: "dyn_{{ inventory_hostname }}", groups: dynamic, ansible_connection: local}
+    - include_tasks: inc.yml
+      loop: [1, 2]
+    - block:
+        - fail: {msg: boom}
+          when: inventory_hostname == 'h2'
+      rescue:
+        - set_fact: {rescued: true}
+      always:
+        - debug: msg=always
+    - command: hostname
+      delegate_to: localhost
+      run_once: true
+      register: ro
+    - fail: {msg: "h5 fails on purpose"}
+      when: inventory_hostname == 'h5'
+- name: second play uses runtime inventory changes
+  hosts: parity_0:dynamic
+  gather_facts: false
+  tasks:
+    - ping:

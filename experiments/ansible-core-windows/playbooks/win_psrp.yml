@@ -1,0 +1,19 @@
+- name: Windows controller -> Windows target over PSRP
+  hosts: winlocal
+  gather_facts: true
+  tasks:
+    - ansible.windows.win_ping:
+    - ansible.windows.win_shell: "$PSVersionTable.PSVersion.ToString()"
+      register: ps
+    - debug: msg="PS {{ ps.stdout | trim }} on {{ ansible_facts.os_name }}"
+    - ansible.windows.win_file: {path: 'F:\sansible-lab\out', state: directory}
+    - ansible.windows.win_copy: {content: "hello from ansible on windows\r\n", dest: 'F:\sansible-lab\out\copy.txt'}
+      notify: h1
+    - ansible.windows.win_template: {src: t.j2, dest: 'F:\sansible-lab\out\tmpl.txt'}
+      vars: {items_var: [x, y]}
+    - ansible.windows.win_stat: {path: 'F:\sansible-lab\out\copy.txt'}
+      register: st
+    - assert: {that: [st.stat.exists, st.stat.size > 0]}
+  handlers:
+    - name: h1
+      debug: msg="HANDLER RAN"
