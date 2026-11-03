@@ -34,7 +34,8 @@ def _ssh_inventory(tmp_path: Path, group: str) -> str:
     return write_inventory(tmp_path / "ssh.ini", "\n".join([
         f"[{group}]",
         f"target ansible_host={SSH['host']} ansible_port={SSH['port'] or 22} ansible_user={SSH['user']} "
-        f"ansible_ssh_private_key_file={SSH['key']} ansible_connection=ssh {extra}", "",
+        # forward slashes: the INI inventory parser treats backslashes as escapes
+        f"ansible_ssh_private_key_file={Path(SSH['key']).as_posix()} ansible_connection=ssh {extra}", "",
     ]))
 
 

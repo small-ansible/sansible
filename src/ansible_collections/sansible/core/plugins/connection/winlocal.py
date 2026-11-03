@@ -7,10 +7,10 @@ DOCUMENTATION = """
     short_description: Execute on a Windows controller
     description:
         - Runs tasks on the Windows machine that runs Ansible, through local PowerShell processes.
-        - On Windows controllers Sansible routes C(local) connections here, which covers the implicit
+        - "On Windows controllers Sansible routes C(local) connections here, which covers the implicit
           C(localhost) and C(delegate_to: localhost). Use PowerShell-based modules (C(ansible.windows.*))
           and controller-side actions (C(debug), C(set_fact), C(assert), ...). Python modules such as
-          C(ansible.builtin.copy) need a POSIX target and do not run here.
+          C(ansible.builtin.copy) need a POSIX target and do not run here."
         - Privilege escalation (become) is not supported; run Ansible from an elevated prompt instead.
     author: Sansible contributors
     version_added: "2.22.0"

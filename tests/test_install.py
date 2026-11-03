@@ -63,8 +63,17 @@ def test_post_import_hook_targets_exist():
         assert callable(loader.connection_loader.get_with_context) and callable(loader.get_all_plugin_loaders)
         assert hasattr(VaultSecretsContext, "initialize")
         assert "playbook_paths" in vars(type(AnsibleCollectionConfig))
-    """, SANSIBLE_DISABLE="1")
+    """, **({} if IS_WINDOWS else {"SANSIBLE_DISABLE": "1"}))  # Windows can't import ansible without the layer
     assert proc.returncode == 0, proc.stderr
+
+
+def test_bundled_plugin_documentation_parses():
+    """ansible parses DOCUMENTATION to build plugin options; a YAML error there fails every task at runtime."""
+    for name in ("sansible.core.paramiko", "sansible.core.winlocal"):
+        proc = subprocess.run([ansible_cli("ansible-doc"), "-t", "connection", "--json", name],
+                              capture_output=True, text=True, timeout=120)
+        assert proc.returncode == 0, proc.stdout + proc.stderr
+        assert '"options"' in proc.stdout, proc.stdout[:2000]
 
 
 def test_bundled_collection_plugins_resolve():

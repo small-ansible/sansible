@@ -2,7 +2,7 @@
   gather_facts: true
   vars: {items_var: [a, b]}
   tasks:
-    - command: /bin/true
+    - command: "true"
       changed_when: true
       notify: h1
     - debug: msg="item={{ item }} os={{ ansible_facts.system }}"

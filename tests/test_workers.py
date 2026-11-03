@@ -38,7 +38,8 @@ def _run_suite(tmp_path: Path, label: str, **kwargs) -> list[str]:
 
 
 @posix_only
-@pytest.mark.parametrize("variant", ["pool", "winsim"])
+@pytest.mark.parametrize("variant", ["pool", pytest.param("winsim", marks=pytest.mark.skipif(
+    not sys.platform.startswith("linux"), reason="the simulator models Windows on top of Linux's stdlib"))])
 def test_results_identical_to_fork(tmp_path, variant):
     """vault, roles with custom modules, adjacent plugins, add_host/group_by (RPC), blocks, includes, delegation."""
     baseline = _run_suite(tmp_path, "fork", model="fork")

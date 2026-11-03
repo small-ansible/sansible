@@ -79,9 +79,28 @@ def _posix_module_paths(mod) -> None:
     mod._get_ansible_module_fqn = lambda module_path: orig(module_path.replace("\\", "/"))
 
 
+def _plain_str_psrp_kwargs(mod) -> None:
+    """
+    ansible-core passes data-tagged str subclasses (username, password, ...) straight to pypsrp.
+    On Windows, NTLM/Kerberos go through SSPI via sspilib, a Cython extension that rejects str
+    subclasses ("Argument 'username' has incorrect type"). Hand pypsrp plain strings.
+    """
+    orig = mod.Connection._build_kwargs
+
+    def _build_kwargs(self):
+        orig(self)
+        for kwargs in (self._psrp_conn_kwargs, self._psrp_runspace_kwargs):
+            for key, value in kwargs.items():
+                if isinstance(value, str) and type(value) is not str:
+                    kwargs[key] = str.__str__(value)
+
+    mod.Connection._build_kwargs = _build_kwargs
+
+
 WINDOWS_POST_IMPORT: dict[str, list[t.Callable]] = {
     "ansible.module_utils._internal._debug": [_no_sigusr1_debug],
     "ansible.executor.module_common": [_posix_module_paths],
+    "ansible.plugins.connection.psrp": [_plain_str_psrp_kwargs],
 }
 
 
