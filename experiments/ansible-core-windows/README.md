@@ -1,5 +1,8 @@
 # Experiment: unmodified ansible-core as a native Windows controller
 
+> **Superseded by the `sansible` package** (`src/sansible/_compat`, `src/ansible_collections/sansible/core`).
+> This folder is the research record: the prototype, measurements and findings that led to it.
+
 **Question:** instead of re-implementing Ansible, can we run real `ansible-core` on a
 Windows control node by fixing only the parts that are POSIX-specific?
 

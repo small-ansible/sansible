@@ -1,0 +1,14 @@
+- hosts: localhost
+  gather_facts: true
+  vars: {items_var: [a, b]}
+  tasks:
+    - command: /bin/true
+      changed_when: true
+      notify: h1
+    - debug: msg="item={{ item }} os={{ ansible_facts.system }}"
+      loop: "{{ items_var }}"
+    - copy: {content: "hello\n", dest: "{{ out_dir }}/copy.txt"}
+    - template: {src: t.j2, dest: "{{ out_dir }}/tmpl.txt"}
+  handlers:
+    - name: h1
+      debug: msg="HANDLER RAN"

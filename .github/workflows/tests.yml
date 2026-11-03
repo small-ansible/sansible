@@ -1,0 +1,169 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      integration:
+        description: ansible-core integration targets to run
+        type: choice
+        options: [quick, full]
+        default: quick
+  workflow_call:
+    inputs:
+      ref:
+        description: commit to test
+        type: string
+        required: true
+      integration:
+        type: string
+        default: full
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ inputs.ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - uses: astral-sh/setup-uv@v6
+      - name: Lint
+        run: uvx ruff check src tests
+      - name: Build sdist and wheel
+        run: uv build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  test:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: ["3.13", "3.14"]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: Install the built wheel
+        run: python -m pip install dist/*.whl pytest pexpect
+
+      - name: Install ansible.windows for Windows-target tests
+        run: |
+          ansible-galaxy collection install ansible.windows -p "$RUNNER_TEMP/collections"
+          echo "SANSIBLE_TEST_COLLECTIONS_PATH=$RUNNER_TEMP/collections" >> "$GITHUB_ENV"
+
+      - name: SSH target (Linux sshd on localhost)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get install -y -qq openssh-server > /dev/null
+          ssh-keygen -q -t ed25519 -N "" -f "$RUNNER_TEMP/id_test"
+          mkdir -p ~/.ssh && cat "$RUNNER_TEMP/id_test.pub" >> ~/.ssh/authorized_keys && chmod 700 ~/.ssh && chmod 600 ~/.ssh/authorized_keys
+          sudo systemctl start ssh
+          {
+            echo "SANSIBLE_TEST_SSH_HOST=127.0.0.1"
+            echo "SANSIBLE_TEST_SSH_PORT=22"
+            echo "SANSIBLE_TEST_SSH_USER=$(whoami)"
+            echo "SANSIBLE_TEST_SSH_KEY=$RUNNER_TEMP/id_test"
+            echo "SANSIBLE_TEST_SSH_SHELL=sh"
+          } >> "$GITHUB_ENV"
+
+      - name: PSRP target (WinRM on localhost)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $password = [System.Web.Security.Membership]::GeneratePassword(24, 4) 2>$null
+          if (-not $password) { $password = "Sx1!" + [guid]::NewGuid().ToString("N") }
+          $secure = ConvertTo-SecureString $password -AsPlainText -Force
+          New-LocalUser -Name sansibletest -Password $secure -PasswordNeverExpires | Out-Null
+          Add-LocalGroupMember -Group Administrators -Member sansibletest
+          Enable-PSRemoting -Force -SkipNetworkProfileCheck | Out-Null
+          # local accounts over a network logon (even to localhost) need this for admin rights
+          New-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System -Name LocalAccountTokenFilterPolicy -Value 1 -PropertyType DWord -Force | Out-Null
+          echo "::add-mask::$password"
+          "SANSIBLE_TEST_PSRP_HOST=127.0.0.1" >> $env:GITHUB_ENV
+          "SANSIBLE_TEST_PSRP_USER=sansibletest" >> $env:GITHUB_ENV
+          "SANSIBLE_TEST_PSRP_PASSWORD=$password" >> $env:GITHUB_ENV
+
+      - name: SSH target (Windows OpenSSH server on localhost)
+        if: runner.os == 'Windows'
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          if (-not (Get-Service sshd -ErrorAction SilentlyContinue)) {
+            Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0 | Out-Null
+          }
+          New-ItemProperty -Path HKLM:\SOFTWARE\OpenSSH -Name DefaultShell -Value "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -PropertyType String -Force | Out-Null
+          ssh-keygen -q -t ed25519 -N '' -f "$env:RUNNER_TEMP\id_test"
+          $keys = "$env:ProgramData\ssh\administrators_authorized_keys"
+          New-Item -ItemType Directory -Force (Split-Path $keys) | Out-Null
+          Get-Content "$env:RUNNER_TEMP\id_test.pub" | Set-Content -Encoding ascii $keys
+          icacls $keys /inheritance:r /grant "Administrators:F" /grant "SYSTEM:F" | Out-Null
+          Start-Service sshd
+          "SANSIBLE_TEST_SSH_HOST=127.0.0.1" >> $env:GITHUB_ENV
+          "SANSIBLE_TEST_SSH_PORT=22" >> $env:GITHUB_ENV
+          "SANSIBLE_TEST_SSH_USER=$env:USERNAME" >> $env:GITHUB_ENV
+          "SANSIBLE_TEST_SSH_KEY=$env:RUNNER_TEMP\id_test" >> $env:GITHUB_ENV
+          "SANSIBLE_TEST_SSH_SHELL=powershell" >> $env:GITHUB_ENV
+
+      - name: sansible doctor
+        run: sansible doctor
+      - name: Tests
+        working-directory: tests
+        run: python -m pytest -v -rs --durations=10
+
+  integration:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: Check out ansible-core at the pinned version (its tests drive this job)
+        run: |
+          core=$(sed -n 's/^ANSIBLE_CORE_VERSION = "\(.*\)"/\1/p' src/sansible/__init__.py)
+          git clone -q --depth 1 --branch "v$core" https://github.com/ansible/ansible.git "$RUNNER_TEMP/ansible"
+      - name: Install (into the interpreter itself, not a venv)
+        run: python -m pip install dist/*.whl pexpect passlib -r "$RUNNER_TEMP/ansible/requirements.txt"
+      - name: ansible-core integration targets under the spawn pool
+        run: |
+          set_name="${{ inputs.integration || 'quick' }}"
+          list=tests/integration/targets.txt
+          [ "$set_name" = "quick" ] && list=tests/integration/targets-quick.txt
+          PYTHON=$(command -v python) tests/integration/run.sh "$RUNNER_TEMP/ansible" "$list" "$RUNNER_TEMP/it"
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: integration-logs
+          path: ${{ runner.temp }}/it/
