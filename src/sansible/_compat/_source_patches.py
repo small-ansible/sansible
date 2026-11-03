@@ -140,22 +140,37 @@ def apply_patches(fullname: str, source: str) -> str:
     return source
 
 
+_BUILTIN_COLLECTION_PREFIX = "ansible_collections.ansible.builtin.plugins."
+
+
+def canonical_name(name: str) -> str:
+    """
+    The same builtin plugin file loads as ansible.plugins.action.fetch (short or ansible.legacy name)
+    or as ansible_collections.ansible.builtin.plugins.action.fetch (FQCN); patches use the former.
+    """
+    if name.startswith(_BUILTIN_COLLECTION_PREFIX):
+        return "ansible.plugins." + name[len(_BUILTIN_COLLECTION_PREFIX):]
+    return name
+
+
 class _Loader(importlib.machinery.SourceFileLoader):
     def get_code(self, fullname):
-        if fullname not in PATCHES:
+        key = canonical_name(fullname)
+        if key not in PATCHES:
             return super().get_code(fullname)
-        source = apply_patches(fullname, self.get_source(fullname))
+        source = apply_patches(key, self.get_source(fullname))
         return compile(source, self.path, "exec", dont_inherit=True)
 
     def exec_module(self, module):
         super().exec_module(module)
-        for hook in POST_IMPORT.get(module.__name__, ()):
+        for hook in POST_IMPORT.get(canonical_name(module.__name__), ()):
             hook(module)
 
 
 class _Finder(importlib.abc.MetaPathFinder):
     def find_spec(self, name, path=None, target=None):
-        if name not in PATCHES and name not in POST_IMPORT:
+        key = canonical_name(name)
+        if key not in PATCHES and key not in POST_IMPORT:
             return None
         spec = importlib.machinery.PathFinder.find_spec(name, path)
         if spec is None or not spec.origin or not spec.origin.endswith(".py"):
@@ -176,7 +191,8 @@ def patch_plugin_loading(mod) -> None:
     orig = mod.PluginLoader._load_module_source
 
     def _load_module_source(self, *, python_module_name: str, path: str):
-        if python_module_name in sys.modules or (python_module_name not in PATCHES and python_module_name not in POST_IMPORT):
+        key = canonical_name(python_module_name)
+        if python_module_name in sys.modules or (key not in PATCHES and key not in POST_IMPORT):
             return orig(self, python_module_name=python_module_name, path=path)
         spec = importlib.util.spec_from_file_location(python_module_name, path, loader=_Loader(python_module_name, path))
         module = importlib.util.module_from_spec(spec)

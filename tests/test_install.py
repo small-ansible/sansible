@@ -79,8 +79,11 @@ def test_plugin_files_receive_patches():
         import sys
         from ansible.plugins.loader import action_loader, init_plugin_loader
         init_plugin_loader()
-        action_loader.get("debug", class_only=True)
-        assert getattr(sys.modules["ansible.plugins.action.debug"], "SANSIBLE_HOOKED", False)
+        # a builtin plugin loads as ansible_collections.ansible.builtin.plugins.<type>.<name> via its FQCN
+        # (as playbooks usually name it) or as ansible.plugins.<type>.<name>; the first one wins per file
+        for name in ("ansible.builtin.debug", "debug"):
+            cls = action_loader.get(name, class_only=True)
+            assert getattr(sys.modules[cls.__module__], "SANSIBLE_HOOKED", False), (name, cls.__module__)
     """, SANSIBLE_DISABLE="1")
     assert proc.returncode == 0, proc.stderr
 
