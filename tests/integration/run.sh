@@ -9,10 +9,10 @@
 set -uo pipefail
 
 SRC=$1
-TARGETS=$2
-OUT=$3
+TARGETS=$(realpath "$2")
+mkdir -p "$3"
+OUT=$(realpath "$3")
 PYTHON=${PYTHON:-python3}
-mkdir -p "$OUT"
 : > "$OUT/summary.tsv"
 
 # ansible-test passes only a fixed set of environment variables to targets, so force the

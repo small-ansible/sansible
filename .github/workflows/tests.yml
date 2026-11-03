@@ -96,8 +96,8 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $password = [System.Web.Security.Membership]::GeneratePassword(24, 4) 2>$null
-          if (-not $password) { $password = "Sx1!" + [guid]::NewGuid().ToString("N") }
+          # random throwaway password; prefix satisfies the upper/lower/digit/symbol complexity rule
+          $password = "Sx1!" + [guid]::NewGuid().ToString("N")
           $secure = ConvertTo-SecureString $password -AsPlainText -Force
           New-LocalUser -Name sansibletest -Password $secure -PasswordNeverExpires | Out-Null
           Add-LocalGroupMember -Group Administrators -Member sansibletest

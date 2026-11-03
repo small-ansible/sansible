@@ -20,7 +20,8 @@ def _is_controller_process() -> bool:
 
 
 if os.environ.get("SANSIBLE_TEST_WINSIM") == "1" and _is_controller_process():
-    BLOCKED = {"fcntl", "termios", "tty", "pty", "pwd", "grp", "resource", "syslog", "posix"}
+    # not "posix": it is CPython's own platform module (shutil imports it on 3.14+); Windows has "nt"
+    BLOCKED = {"fcntl", "termios", "tty", "pty", "pwd", "grp", "resource", "syslog"}
     # os functions CPython lacks on Windows; stdlib-internal ones (WNOHANG, ...) stay or subprocess breaks
     POSIX_ONLY_OS = ["fork", "forkpty", "register_at_fork", "setsid", "setpgid", "getpgid", "killpg",
                      "getuid", "geteuid", "getgid", "getegid", "getgroups", "chown", "lchown",
