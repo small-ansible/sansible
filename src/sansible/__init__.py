@@ -1,27 +1,20 @@
-# Copyright (c) 2024 Sansible Contributors
-# MIT License
-
 """
-Sansible: Minimal Ansible-compatible playbook runner.
+Sansible: ansible-core that also runs natively on Windows.
 
-A lightweight, pure-Python alternative to Ansible for running simple playbooks
-on Windows and Linux hosts via SSH and WinRM.
+Sansible is ansible-core plus a small compatibility layer, loaded automatically at
+import time, that removes ansible-core's POSIX-only assumptions:
 
-Features:
-    - Pure Python wheel (py3-none-any) — no compiled extensions
-    - Windows-native control node — no WSL required
-    - SSH (asyncssh) and WinRM (pypsrp) connections
-    - Subset of Ansible module and feature support
+- task workers run in a persistent pool of spawned processes instead of fork()
+- POSIX-only stdlib modules get portable stand-ins
+- a handful of '/'-separator and permission-bit assumptions are patched
+- `ssh` connections from a Windows controller use a pure-Python (paramiko) plugin
 
-This package exposes the main CLI entry point and release metadata.
+The version is the ansible-core version it is built and tested on, plus a Sansible
+revision: 2.22.0.1 is ansible-core 2.22.0, Sansible revision 1.
 """
-
 from __future__ import annotations
 
-from sansible.release import __version__, __author__, __codename__
+__version__ = "2.22.0.1"
 
-__all__ = [
-    "__version__",
-    "__author__",
-    "__codename__",
-]
+ANSIBLE_CORE_VERSION = "2.22.0"
+"""The exact ansible-core version this Sansible release patches and is tested against."""

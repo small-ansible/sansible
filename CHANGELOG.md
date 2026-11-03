@@ -1,9 +1,34 @@
 # Changelog
 
-All notable changes to Sansible will be documented in this file.
+All notable changes to Sansible are documented here. Versions are `<ansible-core version>.<revision>`.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [2.22.0.1] - 2026-11-03
+
+Sansible is now a distribution of the real ansible-core that runs natively on Windows,
+replacing the original from-scratch engine (preserved on the `legacy-0.4` branch; 0.4.1
+remains installable from PyPI).
+
+### Added
+- ansible-core 2.22.0 (exact pin) with an import-time compatibility layer, loaded automatically
+  by `sansible_autoload.pth`; the stock `ansible-*` commands work on Windows.
+- Persistent spawn-based worker pool replacing fork-per-task workers (default on Windows,
+  `SANSIBLE_WORKER=pool` elsewhere). Results identical to fork on ansible-core's own
+  integration targets; Ctrl-C stops workers together with the processes their tasks started.
+- `sansible.core.paramiko` connection plugin (adapted from ansible-core's removed paramiko
+  plugin); Windows controllers use it for `ssh`.
+- `sansible.core.winlocal` connection plugin: PowerShell-based local execution on Windows
+  controllers (`local`, implicit `localhost`, `delegate_to: localhost`).
+- `sansible doctor` command.
+- CI on Linux, macOS and Windows (Python 3.13/3.14) with real SSH and PSRP targets and
+  ansible-core integration targets; daily tracking of new ansible-core releases with automatic
+  test-gated publishing.
+
+### Changed
+- License: GPL-3.0-or-later (was MIT).
+- Requires Python 3.13+.
+
+### Removed
+- The original Sansible engine, modules and CLIs (see the `legacy-0.4` branch).
 
 ## [0.2.0] - 2025-01-11
 

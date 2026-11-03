@@ -1,0 +1,3 @@
+- hello_mod: {who: "{{ inventory_hostname }}"}
+  register: hm
+- assert: {that: ["hm.greeting == 'hello ' ~ inventory_hostname"]}

@@ -1,137 +1,77 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
 
 [project]
 name = "sansible"
-version = "0.4.1"
-description = "Small Ansible - Minimal Ansible-compatible runner for Windows and Linux"
+dynamic = ["version"]
+description = "ansible-core that also runs natively on Windows: spawn-based workers, pure-Python SSH, no WSL"
 readme = "README.md"
-license = {text = "MIT"}
-requires-python = ">=3.9"
-authors = [
-    {name = "Sansible Contributors"}
-]
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
+requires-python = ">=3.13"
+authors = [{ name = "Sansible contributors" }]
+keywords = ["ansible", "ansible-core", "windows", "automation", "configuration-management", "ssh", "winrm", "psrp"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Environment :: Console",
     "Intended Audience :: System Administrators",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
     "Operating System :: Microsoft :: Windows",
     "Operating System :: POSIX :: Linux",
     "Operating System :: MacOS",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
-    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: 3.14",
     "Topic :: System :: Systems Administration",
     "Topic :: System :: Installation/Setup",
-    "Typing :: Typed",
 ]
-keywords = ["ansible", "automation", "configuration-management", "windows", "ssh", "winrm", "devops", "infrastructure", "small-ansible"]
-
-# Core dependencies (always installed)
 dependencies = [
-    "pyyaml>=6.0",
-    "jinja2>=3.0",
+    # Exact pin: the import-time patches are verified against this release.
+    # .github/workflows/track-ansible-core.yml moves it forward after the full test matrix passes.
+    "ansible-core==2.22.0",
+    "paramiko>=3.4",  # ssh connections from Windows controllers (sansible.core.paramiko)
+    "pypsrp>=0.8",    # psrp connections to Windows targets
 ]
 
 [project.optional-dependencies]
-# SSH connections (Linux/Unix targets)
-ssh = [
-    "asyncssh>=2.14.0",
-]
-# WinRM connections (Windows targets)
-winrm = [
-    "pypsrp>=0.8.0",
-]
-# Vault decryption support
-vault = [
-    "cryptography>=41.0.0",
-]
-# Full installation with all connection types and vault
-all = [
-    "sansible[ssh,winrm,vault]",
-]
-# Development dependencies
-dev = [
-    "pytest>=7.0",
-    "pytest-asyncio>=0.21.0",
-    "pytest-cov>=4.0",
-    "ruff>=0.1.0",
-    "mypy>=1.0",
-    "ansible-core>=2.15.0",  # Oracle for golden tests
-    "docker>=6.0.0",  # Integration tests
-    "cryptography>=41.0.0",  # Vault tests
-]
+test = ["pytest>=8", "pexpect>=4.9"]
 
 [project.scripts]
-sansible = "sansible.cli.main:main"
-sansible-playbook = "sansible.cli.playbook:main"
-sansible-inventory = "sansible.cli.inventory:main"
-sansible-compat-scan = "sansible.compat_scan:main"
+sansible = "sansible.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/small-ansible/sansible"
-Documentation = "https://github.com/small-ansible/sansible/docs"
 Repository = "https://github.com/small-ansible/sansible"
+Issues = "https://github.com/small-ansible/sansible/issues"
+Changelog = "https://github.com/small-ansible/sansible/blob/main/CHANGELOG.md"
 
-[tool.setuptools]
-package-dir = {"" = "src"}
+[tool.hatch.version]
+path = "src/sansible/__init__.py"
 
-[tool.setuptools.packages.find]
-where = ["src"]
+[tool.hatch.build.targets.wheel]
+packages = ["src/sansible", "src/ansible_collections"]
 
-[tool.setuptools.package-data]
-"*" = ["py.typed"]
+[tool.hatch.build.targets.wheel.force-include]
+"src/sansible_autoload.pth" = "sansible_autoload.pth"
 
-# NOTE: Pure-python wheel is enforced by NOT defining any ext-modules
-# and by running tools/dep_audit.py in CI
-
-[tool.black]
-line-length = 100
-target-version = ['py39', 'py310', 'py311', 'py312']
-
-[tool.mypy]
-python_version = "3.9"
-strict = true
-warn_return_any = true
-warn_unused_configs = true
+[tool.hatch.build.targets.sdist]
+include = ["src", "tests", "LICENSE", "README.md", "CHANGELOG.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-python_files = ["test_*.py"]
-python_classes = ["Test*"]
-python_functions = ["test_*"]
-asyncio_mode = "auto"
-asyncio_default_fixture_loop_scope = "function"
-filterwarnings = [
-    "ignore::DeprecationWarning",
-]
 
 [tool.ruff]
-line-length = 100
-target-version = "py39"
+line-length = 140
+target-version = "py313"
+extend-exclude = ["experiments", "src/ansible_collections/sansible/core/plugins/connection/paramiko.py"]
 
 [tool.ruff.lint]
-select = [
-    "E",   # pycodestyle errors
-    "W",   # pycodestyle warnings
-    "F",   # pyflakes
-    "I",   # isort
-    "B",   # bugbear
-    "UP",  # pyupgrade
-    "RUF", # ruff-specific
-]
-ignore = [
-    "E501",  # line too long (handled by formatter)
-    "B008",  # function calls in default arguments
-]
+select = ["E", "W", "F", "I", "B", "UP", "RUF"]
+ignore = ["E501", "UP031", "RUF012"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["sansible"]
+known-first-party = ["sansible", "conftest"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/ansible_collections/**" = ["E402"]  # ansible plugin convention: DOCUMENTATION precedes imports

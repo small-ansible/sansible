@@ -1,0 +1,10 @@
+namespace: sansible
+name: core
+version: 2.22.0
+readme: README.md
+authors:
+  - Sansible contributors
+description: Connection plugins that let ansible-core run on Windows controllers (bundled with the sansible package).
+license:
+  - GPL-3.0-or-later
+repository: https://github.com/small-ansible/sansible

@@ -1,0 +1,11 @@
+# Windows target over psrp or ssh (powershell shell)
+- hosts: winremote
+  gather_facts: true
+  vars: {items_var: [a, b]}
+  tasks:
+    - ansible.windows.win_ping:
+    - ansible.builtin.include_tasks: tasks_win.yml
+    - ansible.builtin.fetch: {src: "{{ out_dir }}\\tmpl.txt", dest: "{{ fetch_dir }}/", flat: true}
+  handlers:
+    - name: copied
+      ansible.builtin.debug: msg="HANDLER RAN"

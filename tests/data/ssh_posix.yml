@@ -1,0 +1,16 @@
+# POSIX target over ssh (routed to sansible.core.paramiko on Windows or with SANSIBLE_SSH=paramiko)
+- hosts: sshposix
+  gather_facts: true
+  tasks:
+    - ansible.builtin.ping:
+    - ansible.builtin.command: uname -s
+      register: u
+    - ansible.builtin.file: {path: "{{ out_dir }}", state: directory}
+    - ansible.builtin.copy: {content: "via ssh\n", dest: "{{ out_dir }}/copy.txt"}
+    - ansible.builtin.template: {src: t.j2, dest: "{{ out_dir }}/tmpl.txt"}
+      vars: {items_var: [a, b]}
+    - ansible.builtin.lineinfile: {path: "{{ out_dir }}/copy.txt", line: added}
+    - ansible.builtin.fetch: {src: "{{ out_dir }}/tmpl.txt", dest: "{{ fetch_dir }}/", flat: true}
+    - ansible.builtin.stat: {path: "{{ out_dir }}/copy.txt"}
+      register: st
+    - ansible.builtin.assert: {that: [st.stat.exists, "u.rc == 0", "ansible_facts.system is defined"]}

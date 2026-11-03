@@ -1,0 +1,152 @@
+name: Release
+
+# Two ways in:
+# - push a tag vX.Y.Z.N matching src/sansible/__init__.py  -> test, then publish
+# - daily schedule / manual run: if ansible-core has a newer release than the pin, bump it on
+#   auto/ansible-core-X.Y.Z, run the full test matrix, and only if everything passes promote it
+#   to main, tag it, and publish. Any failure opens an issue instead.
+# PyPI publishing uses trusted publishing (no tokens): pypi.org project "sansible" ->
+# Publishing -> GitHub publisher small-ansible/sansible, workflow release.yml, environment pypi.
+
+on:
+  push:
+    tags: ["v*"]
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+    inputs:
+      ansible_core:
+        description: ansible-core version to track (default latest on PyPI)
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      mode: ${{ steps.plan.outputs.mode }}
+      version: ${{ steps.plan.outputs.version }}
+      core: ${{ steps.plan.outputs.core }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: plan
+        run: python .github/scripts/release_plan.py plan --core "${{ inputs.ansible_core }}"
+
+  bump:
+    needs: plan
+    if: needs.plan.outputs.mode == 'track'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      sha: ${{ steps.commit.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - id: commit
+        run: |
+          python .github/scripts/release_plan.py bump "${{ needs.plan.outputs.core }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -qam "chore: Track ansible-core ${{ needs.plan.outputs.core }} (sansible ${{ needs.plan.outputs.version }})"
+          git push -f origin "HEAD:refs/heads/auto/ansible-core-${{ needs.plan.outputs.core }}"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  test:
+    needs: [plan, bump]
+    if: always() && (needs.plan.outputs.mode == 'release' || needs.bump.result == 'success')
+    uses: ./.github/workflows/tests.yml
+    with:
+      ref: ${{ needs.bump.outputs.sha || github.sha }}
+      integration: full
+
+  promote:
+    needs: [plan, bump, test]
+    if: always() && needs.plan.outputs.mode == 'track' && needs.test.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.bump.outputs.sha }}
+          fetch-depth: 0
+      - name: Fast-forward main and tag (fails if main moved meanwhile)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git push origin "HEAD:refs/heads/main"
+          git tag -a "v${{ needs.plan.outputs.version }}" -m "sansible ${{ needs.plan.outputs.version }} (ansible-core ${{ needs.plan.outputs.core }})"
+          git push origin "v${{ needs.plan.outputs.version }}"
+          git push origin --delete "auto/ansible-core-${{ needs.plan.outputs.core }}" || true
+
+  publish:
+    needs: [plan, test, promote]
+    if: >-
+      always() && needs.test.result == 'success' &&
+      (needs.plan.outputs.mode == 'release' || needs.promote.result == 'success')
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/sansible/${{ needs.plan.outputs.version }}/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: Check the artifacts are the version being released
+        run: ls dist/ && test -f "dist/sansible-${{ needs.plan.outputs.version }}-py3-none-any.whl"
+      - uses: pypa/gh-action-pypi-publish@release/v1
+
+  github-release:
+    needs: [plan, publish]
+    if: always() && needs.publish.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.plan.outputs.version }}
+          CORE: ${{ needs.plan.outputs.core }}
+        run: |
+          gh release create "v$VERSION" dist/* --repo "$GITHUB_REPOSITORY" --title "sansible $VERSION" --notes \
+            "ansible-core $CORE, runnable natively on Windows. Install: \`pip install sansible==$VERSION\`.
+          Tested on Linux, macOS and Windows (Python 3.13, 3.14) including ansible-core's own integration targets under the spawn worker pool."
+
+  report-failure:
+    needs: [plan, bump, test, promote, publish]
+    if: always() && needs.plan.outputs.mode == 'track' && contains(needs.*.result, 'failure')
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          CORE: ${{ needs.plan.outputs.core }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="ansible-core $CORE: automatic Sansible release failed"
+          if gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "$title in:title" --json number --jq '.[0].number' | grep -q .; then
+            gh issue comment --repo "$GITHUB_REPOSITORY" "$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "$title in:title" --json number --jq '.[0].number')" --body "Failed again: $RUN"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "The daily tracker found ansible-core $CORE, but the test matrix or release failed, so nothing was published.
+
+          Run: $RUN
+
+          Usual causes: a patched ansible-core line changed (tests/test_install.py::test_every_source_patch_still_applies names it), or a new fork assumption surfaced in the integration targets."
+          fi
