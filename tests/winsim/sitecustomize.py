@@ -15,6 +15,8 @@ import sys
 
 def _is_controller_process() -> bool:
     """The ansible CLI and its spawned workers; not modules the local connection runs on this host."""
+    if os.environ.get("SANSIBLE_TEST_WINSIM_FORCE") == "1":  # a test's own interpreter
+        return True
     prog = os.path.basename(sys.argv[0]) if sys.argv else ""
     return prog.startswith("ansible") or "--multiprocessing-fork" in getattr(sys, "orig_argv", ())
 

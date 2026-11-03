@@ -66,6 +66,29 @@ WINDOWS_PATCHES: dict[str, list[tuple[str, str]]] = {
          "errors='surrogate_or_strict')) and not dest.endswith((os.sep, '/')):"),
         ("                if dest.endswith(os.sep):", "                if dest.endswith((os.sep, '/')):"),
     ],
+    # ~/path on the *remote* host was split on the controller's separator, so with become the
+    # '~' never matched and expanded to the login user's home instead of the become user's.
+    "ansible.plugins.action": [
+        ("        split_path = path.split(os.path.sep, 1)", "        split_path = path.split('/', 1)"),
+    ],
+    # The playbook directory was taken with split('/'), which finds nothing in a Windows path.
+    "ansible.plugins.action.include_vars": [
+        ('''                    "/".join(origin.path.split('/')[:-1])''', '''                    path.dirname(origin.path)'''),
+    ],
+    # copy: a trailing '/' on src (copy the directory's contents) was only recognised as os.sep, and
+    # remote paths were joined with the controller's os.path; relative paths are fixed by _posix_copy_relpaths.
+    "ansible.plugins.action.copy": [
+        ("            trailing_slash = source.endswith(os.path.sep)", "            trailing_slash = source.endswith((os.path.sep, '/'))"),
+        ("            new_module_args['path'] = os.path.join(dest, dest_path)",
+         "            new_module_args['path'] = self._connection._shell.join_path(dest, dest_path)"),
+        ("            new_module_args['path'] = os.path.join(dest, dest_path)",
+         "            new_module_args['path'] = self._connection._shell.join_path(dest, dest_path)"),
+    ],
+    # ansible-galaxy role install -p dir/name appended the name again when written with '/'.
+    "ansible.galaxy.role": [
+        ("            if not path.endswith(os.path.join(os.path.sep, self.name)):",
+         "            if not path.endswith((os.path.join(os.path.sep, self.name), '/' + self.name)):"),
+    ],
 }
 
 
@@ -105,7 +128,32 @@ def _plain_str_wsman_args(mod) -> None:
     mod.WSMan.__init__ = __init__
 
 
+def _posix_copy_relpaths(mod) -> None:
+    """
+    copy walks the local source tree with os.sep and joins each relative path onto the remote
+    destination, so a Windows controller sent "sub\\\\file" to POSIX hosts as one file name.
+    Relative paths are remote-facing: give them '/' separators.
+    """
+    import os
+
+    orig = mod._walk_dirs
+
+    def _walk_dirs(*args, **kwargs):
+        r_files = orig(*args, **kwargs)
+        for kind in ("files", "directories"):
+            r_files[kind] = [(full, rel.replace(os.sep, "/")) for full, rel in r_files[kind]]
+        links = r_files["symlinks"]
+        if isinstance(links, tuple):  # topdir itself is a symlink: a single (target, name) pair
+            r_files["symlinks"] = (links[0], links[1].replace(os.sep, "/"))
+        else:
+            r_files["symlinks"] = [(target, rel.replace(os.sep, "/")) for target, rel in links]
+        return r_files
+
+    mod._walk_dirs = _walk_dirs
+
+
 WINDOWS_POST_IMPORT: dict[str, list[t.Callable]] = {
+    "ansible.plugins.action.copy": [_posix_copy_relpaths],
     "ansible.module_utils._internal._debug": [_no_sigusr1_debug],
     "ansible.executor.module_common": [_posix_module_paths],
     "pypsrp.wsman": [_plain_str_wsman_args],

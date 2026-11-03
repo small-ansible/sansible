@@ -100,10 +100,14 @@ OK
 
 ## Development
 
+Before pushing, run both gates. CI should only confirm what they have already shown:
+
 ```bash
-uv build
-uv venv --python 3.13 && uv pip install dist/*.whl pytest pexpect
-cd tests && ../.venv/bin/python -m pytest -v
+scripts/check.sh                          # lint, build, workflow checks, tests on 3.13 + 3.14, integration targets
+```
+
+```bash
+scripts/test-windows.sh user@windows-host  # same suite on a real Windows machine over SSH (needs uv there)
 ```
 
 Tests run against the installed wheel, through the real ansible CLI. Remote-target tests are

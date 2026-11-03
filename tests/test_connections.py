@@ -29,9 +29,9 @@ def _extra_vars(**values: str) -> list[str]:
     return ["-e", json.dumps(values)]
 
 
-def _run_twice(play: Path, inv: str, env: dict, args: list[str]):
-    first = assert_ok(run_playbook(play, inv, env=env, args=args))
-    second = assert_ok(run_playbook(play, inv, env=env, args=args))
+def _run_twice(play: Path, inv: str, env: dict, args: list[str], cwd: Path | None = None):
+    first = assert_ok(run_playbook(play, inv, env=env, args=args, cwd=cwd))
+    second = assert_ok(run_playbook(play, inv, env=env, args=args, cwd=cwd))
     return first, second
 
 
@@ -64,10 +64,12 @@ def test_ssh_via_paramiko(tmp_path):
 
 @pytest.mark.skipif(not PSRP["host"] or not COLLECTIONS, reason="set SANSIBLE_TEST_PSRP_* and SANSIBLE_TEST_COLLECTIONS_PATH")
 def test_psrp_windows_target(tmp_path):
+    # with a password: NTLM as that user; without: Negotiate with the current logon's credentials (SSPI)
+    creds = (f"ansible_user={PSRP['user']} ansible_password={PSRP['password']} ansible_psrp_auth=ntlm"
+             if PSRP["password"] else "ansible_psrp_auth=negotiate")
     inv = write_inventory(tmp_path / "psrp.ini", "\n".join([
         "[winremote]",
-        f"target ansible_host={PSRP['host']} ansible_user={PSRP['user']} ansible_password={PSRP['password']} "
-        "ansible_connection=psrp ansible_psrp_protocol=http ansible_psrp_auth=ntlm ansible_port=5985", "",
+        f"target ansible_host={PSRP['host']} {creds} ansible_connection=psrp ansible_psrp_protocol=http ansible_port=5985", "",
     ]))
     fetch = tmp_path / "fetched"
     _, second = _run_twice(DATA / "windows" / "remote.yml", inv, _env(tmp_path),
@@ -82,7 +84,8 @@ def test_windows_controller_localhost(tmp_path):
     """Implicit localhost on a Windows controller runs through sansible.core.winlocal."""
     inv = write_inventory(tmp_path / "local.ini", "localhost ansible_connection=local\n")
     out_dir = str(tmp_path / "local-out")
-    first, second = _run_twice(DATA / "windows" / "local.yml", inv, _env(tmp_path), _extra_vars(out_dir=out_dir))
+    # run from elsewhere: include_vars dir: must resolve against the playbook, not the working directory
+    first, second = _run_twice(DATA / "windows" / "local.yml", inv, _env(tmp_path), _extra_vars(out_dir=out_dir), cwd=tmp_path)
     assert first["localhost"]["changed"] > second["localhost"]["changed"]
     assert Path(out_dir, "tmpl.txt").read_text().strip() == "x=a,b"
 

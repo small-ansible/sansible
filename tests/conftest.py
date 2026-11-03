@@ -41,6 +41,7 @@ def run_playbook(
     args: list[str] | None = None,
     launcher: list[str] | None = None,
     timeout: int = 600,
+    cwd: Path | None = None,
 ) -> subprocess.CompletedProcess:
     full_env = dict(os.environ, ANSIBLE_NOCOLOR="1", ANSIBLE_FORCE_COLOR="0", ANSIBLE_DEPRECATION_WARNINGS="0",
                     PYTHONUTF8="1")
@@ -48,7 +49,7 @@ def run_playbook(
         full_env["SANSIBLE_WORKER"] = model
     full_env.update(env or {})
     cmd = (launcher or [ansible_cli("ansible-playbook")]) + ["-i", inventory, str(playbook), *(args or [])]
-    proc = subprocess.run(cmd, env=full_env, cwd=playbook.parent, capture_output=True, text=True, timeout=timeout,
+    proc = subprocess.run(cmd, env=full_env, cwd=cwd or playbook.parent, capture_output=True, text=True, timeout=timeout,
                           encoding="utf-8", errors="replace")
     proc.args = cmd
     return proc

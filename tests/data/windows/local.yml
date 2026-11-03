@@ -12,6 +12,8 @@
         - ansible.builtin.fail: {msg: boom}
       rescue:
         - ansible.builtin.set_fact: {rescued: true}
+    - ansible.builtin.include_vars: {dir: vars}  # resolved against the playbook dir, not the cwd
+    - ansible.builtin.assert: {that: ["from_vars_dir == 'loaded'"]}
     - ansible.builtin.include_tasks: tasks_win.yml
   handlers:
     - name: copied
