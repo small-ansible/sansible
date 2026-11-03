@@ -526,7 +526,9 @@ class Connection(ConnectionBase):
         # sudo usually requires a PTY (cf. requiretty option), therefore
         # we give it one by default (pty=True in ansible.cfg), and we try
         # to initialise from the calling environment when sudoable is enabled
-        if self.get_option('pty') and sudoable:
+        # ...but not for Windows targets: Windows OpenSSH backs a pty with ConPTY, which wraps the
+        # output in terminal escape sequences that ansible cannot parse
+        if self.get_option('pty') and sudoable and getattr(self._shell, 'SHELL_FAMILY', '') != 'powershell':
             chan.get_pty(term=os.getenv('TERM', 'vt100'), width=int(os.getenv('COLUMNS', 0)), height=int(os.getenv('LINES', 0)))
 
         display.vvv("EXEC %s" % cmd, host=self.get_option('remote_addr'))

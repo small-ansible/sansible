@@ -55,7 +55,8 @@ def test_post_import_hook_targets_exist():
         from ansible.utils.collection_loader import AnsibleCollectionConfig
         assert isinstance(mc.site_packages, str) and callable(mc._get_ansible_module_fqn)
         assert callable(dbg.register_for_stacktrace)
-        assert hasattr(w, "WorkerProcess") and hasattr(w, "WorkerQueue") and callable(w.WorkerProcess._run)
+        fork_worker = getattr(w, "_ForkWorkerProcess", w.WorkerProcess)  # replaced by the pool where active
+        assert hasattr(w, "WorkerQueue") and callable(fork_worker._run)
         assert callable(tqm.TaskQueueManager.cleanup)
         assert hasattr(role.Role, "_get_hash_dict")
         assert hasattr(cache, "PluginInterposer")

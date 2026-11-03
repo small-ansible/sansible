@@ -64,11 +64,16 @@ class Connection(ConnectionBase):
         if self.become:
             raise AnsibleError("become is not supported by the winlocal connection; run Ansible from an elevated prompt instead")
 
-        if " -EncodedCommand " in cmd:
-            # already a complete PowerShell command line built by the powershell shell plugin
-            args: str | list[str] = cmd
+        # Same interpretation as the psrp plugin: the powershell shell plugin hands over either a
+        # complete "powershell -EncodedCommand '...'" line (quoted for PowerShell's parser, so it
+        # can't go to CreateProcess as-is) or a PowerShell script. Rebuild a real argument list.
+        if enc_cmd := _script.parse_encoded_cmdline(cmd):
+            script, script_args = enc_cmd
         else:
-            args = _script.get_pwsh_encoded_cmdline(cmd, pwsh_path=self.get_option('pwsh_path'), override_execution_policy=True)
+            script, script_args = f"{cmd}\nexit $LASTEXITCODE", None
+        args = _script.get_pwsh_encoded_cmdline(
+            script, args=script_args, pwsh_path=self.get_option('pwsh_path'), override_execution_policy=True,
+        )
 
         display.vvv("EXEC (via local PowerShell)", host=self._play_context.remote_addr)
         proc = subprocess.run(
