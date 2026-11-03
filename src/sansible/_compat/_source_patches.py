@@ -60,6 +60,12 @@ WINDOWS_PATCHES: dict[str, list[tuple[str, str]]] = {
     "ansible.galaxy.api": [
         ("    if cache_mode & stat.S_IWOTH:", "    if cache_mode & stat.S_IWOTH and os.name != 'nt':"),
     ],
+    # fetch with flat=true decides "dest is a directory" by a trailing os.sep, which is '\\' on Windows.
+    "ansible.plugins.action.fetch": [
+        ("errors='surrogate_or_strict')) and not dest.endswith(os.sep):",
+         "errors='surrogate_or_strict')) and not dest.endswith((os.sep, '/')):"),
+        ("                if dest.endswith(os.sep):", "                if dest.endswith((os.sep, '/')):"),
+    ],
 }
 
 
@@ -159,6 +165,30 @@ class _Finder(importlib.abc.MetaPathFinder):
 
 
 _finder = _Finder()
+
+
+def patch_plugin_loading(mod) -> None:
+    """
+    ansible's PluginLoader executes plugin files through spec_from_file_location, which
+    bypasses meta path finders, so plugins (action, connection, ...) never reach _Finder.
+    Load the ones we patch through _Loader instead.
+    """
+    orig = mod.PluginLoader._load_module_source
+
+    def _load_module_source(self, *, python_module_name: str, path: str):
+        if python_module_name in sys.modules or (python_module_name not in PATCHES and python_module_name not in POST_IMPORT):
+            return orig(self, python_module_name=python_module_name, path=path)
+        spec = importlib.util.spec_from_file_location(python_module_name, path, loader=_Loader(python_module_name, path))
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[python_module_name] = module
+        try:
+            spec.loader.exec_module(module)
+        except Exception:
+            del sys.modules[python_module_name]
+            raise
+        return module
+
+    mod.PluginLoader._load_module_source = _load_module_source
 
 
 def register(patches: dict[str, list[tuple[str, str]]], post_import: dict[str, list[t.Callable]]) -> None:

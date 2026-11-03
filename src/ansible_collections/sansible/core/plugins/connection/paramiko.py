@@ -364,6 +364,14 @@ class Connection(ConnectionBase):
     transport = 'paramiko'
     _log_channel: str | None = None
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Same as the builtin ssh plugin: Windows OpenSSH targets run PowerShell (or cmd), not /bin/sh,
+        # so don't wrap commands in an executable and prefer PowerShell module implementations.
+        if getattr(self._shell, "_IS_WINDOWS", False):
+            self.module_implementation_preferences = ('.ps1', '.exe', '')
+            self.allow_executable = False
+
     def _cache_key(self) -> str:
         # includes the port (upstream keyed on address and user only); workers in Sansible's
         # spawn pool are long-lived, so one cache can see several hosts on the same address
@@ -528,7 +536,7 @@ class Connection(ConnectionBase):
         # to initialise from the calling environment when sudoable is enabled
         # ...but not for Windows targets: Windows OpenSSH backs a pty with ConPTY, which wraps the
         # output in terminal escape sequences that ansible cannot parse
-        if self.get_option('pty') and sudoable and getattr(self._shell, 'SHELL_FAMILY', '') != 'powershell':
+        if self.get_option('pty') and sudoable and not getattr(self._shell, '_IS_WINDOWS', False):
             chan.get_pty(term=os.getenv('TERM', 'vt100'), width=int(os.getenv('COLUMNS', 0)), height=int(os.getenv('LINES', 0)))
 
         display.vvv("EXEC %s" % cmd, host=self.get_option('remote_addr'))

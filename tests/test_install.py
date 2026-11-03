@@ -68,6 +68,23 @@ def test_post_import_hook_targets_exist():
     assert proc.returncode == 0, proc.stderr
 
 
+@posix_only  # uses SANSIBLE_DISABLE to start from a clean slate
+def test_plugin_files_receive_patches():
+    """ansible loads plugins with spec_from_file_location (no import hooks); patches must reach them anyway."""
+    proc = _python("""
+        from sansible._compat import _source_patches as sp
+        sp.register({}, {"ansible.plugins.action.debug": [lambda m: setattr(m, "SANSIBLE_HOOKED", True)]})
+        sp.register({}, {"ansible.plugins.loader": [sp.patch_plugin_loading]})
+        sp.install()
+        import sys
+        from ansible.plugins.loader import action_loader, init_plugin_loader
+        init_plugin_loader()
+        action_loader.get("debug", class_only=True)
+        assert getattr(sys.modules["ansible.plugins.action.debug"], "SANSIBLE_HOOKED", False)
+    """, SANSIBLE_DISABLE="1")
+    assert proc.returncode == 0, proc.stderr
+
+
 def test_bundled_plugin_documentation_parses():
     """ansible parses DOCUMENTATION to build plugin options; a YAML error there fails every task at runtime."""
     for name in ("sansible.core.paramiko", "sansible.core.winlocal"):

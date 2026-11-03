@@ -55,6 +55,7 @@ def install(model: str | None = None) -> None:
 
         _spawn_pool.install()
     _source_patches.register({}, hooks)
+    _source_patches.register({}, {"ansible.plugins.loader": [_source_patches.patch_plugin_loading]})
     _source_patches.install()
     _state["worker_model"] = model
     _check_ansible_core_version()
